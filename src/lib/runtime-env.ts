@@ -7,5 +7,5 @@ export function getKv(env: Record<string, any> | undefined): KVNamespace | undef
 }
 
 export function getManuscriptsBucket(env: Record<string, any> | undefined): R2Bucket | undefined {
-	return (env?.MANUSCRIPTS_BUCKET || env?.MY_BUCKET) as R2Bucket | undefined;
+	return (env?.MANUSCRIPTS_BUCKET || env?.MY_BUCKET || env?.article) as R2Bucket | undefined;
 }

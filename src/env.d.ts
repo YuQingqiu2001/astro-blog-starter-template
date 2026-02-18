@@ -4,6 +4,7 @@ interface Env {
 	rpg?: D1Database;
 	MANUSCRIPTS_BUCKET?: R2Bucket;
 	MY_BUCKET?: R2Bucket;
+	article?: R2Bucket;
 	SESSIONS_KV?: KVNamespace;
 	rubbish?: KVNamespace;
 	EMAIL_FROM: string;
