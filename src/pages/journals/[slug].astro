@@ -18,13 +18,13 @@ let articles: any[] = [];
 try {
 	const env = Astro.locals.runtime?.env;
 	if (env?.DB) {
+		// Show all RPG editorial board members on every journal page
 		const boardResult = await env.DB.prepare(`
-			SELECT eb.*, u.name, u.email, u.affiliation, u.bio
+			SELECT eb.*, u.name, u.email, u.affiliation, u.bio, u.orcid
 			FROM editorial_board eb
 			JOIN users u ON eb.user_id = u.id
-			WHERE eb.journal_id = ?
-			ORDER BY eb.is_editor_in_chief DESC, eb.display_order ASC
-		`).bind(journal.id).all();
+			ORDER BY eb.is_editor_in_chief DESC, eb.display_order ASC, u.name ASC
+		`).all();
 		boardMembers = boardResult.results as any[];
 
 		const articlesResult = await env.DB.prepare(`
@@ -176,19 +176,19 @@ const displayArticles = articles.length > 0 ? articles : sampleArticles;
 					href={`/journals/${slug}?tab=articles`}
 					class={`journal-tab${tab === "articles" ? " active" : ""}`}
 				>
-					最新文章
+					Latest Articles
 				</a>
 				<a
 					href={`/journals/${slug}?tab=board`}
 					class={`journal-tab${tab === "board" ? " active" : ""}`}
 				>
-					编委会
+					Editorial Board
 				</a>
 				<a
 					href={`/journals/${slug}?tab=submit`}
 					class={`journal-tab${tab === "submit" ? " active" : ""}`}
 				>
-					投稿指南
+					Submit
 				</a>
 			</div>
 		</div>
@@ -202,12 +202,12 @@ const displayArticles = articles.length > 0 ? articles : sampleArticles;
 			{tab === "articles" && (
 				<div>
 					<div class="section-header">
-						<h2 class="section-title">最新发表文章</h2>
+						<h2 class="section-title">Latest Published Articles</h2>
 					</div>
 
 					{displayArticles.length === 0 ? (
 						<div class="alert alert-info">
-							本期刊暂无已发表文章。欢迎<a href="/author/submit">投递稿件</a>！
+							No published articles yet. <a href="/author/submit">Submit a manuscript</a> to get started!
 						</div>
 					) : (
 						<div style="display: flex; flex-direction: column; gap: 1.25rem;">
@@ -256,17 +256,17 @@ const displayArticles = articles.length > 0 ? articles : sampleArticles;
 			{tab === "board" && (
 				<div>
 					<div class="section-header">
-						<h2 class="section-title">编委会成员</h2>
+						<h2 class="section-title">Editorial Board</h2>
 						<a href="/join-editorial-board" class="btn btn-sm btn-primary">
-							申请加入编委会
+							Apply to Join
 						</a>
 					</div>
 
 					{/* Chief Editor(s) */}
 					{displayBoard.filter((m) => m.is_editor_in_chief).length > 0 && (
 						<div style="margin-bottom: 2rem;">
-							<h3 style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 1rem; font-family: var(--font-sans); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
-								主编
+							<h3 style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; font-family: var(--font-sans); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+								Editors in Chief
 							</h3>
 							<div class="board-grid" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));">
 								{displayBoard
@@ -274,11 +274,16 @@ const displayArticles = articles.length > 0 ? articles : sampleArticles;
 									.map((member) => (
 										<div class="board-member" style="border-top: 3px solid var(--accent);">
 											<div class="board-member-avatar" style="background: var(--accent);">
-												{member.name.charAt(0)}
+												{(member.name || "?").charAt(0).toUpperCase()}
 											</div>
 											<div class="board-member-name">{member.name}</div>
-											<div class="board-member-position" style="color: var(--accent);">{member.position || "主编"}</div>
+											<div class="board-member-position" style="color: var(--accent);">{member.position || "Editor in Chief"}</div>
 											<div class="board-member-affiliation">{member.affiliation}</div>
+											{member.orcid && (
+												<a href={`https://orcid.org/${member.orcid}`} target="_blank" style="font-size:0.75rem;color:var(--text-light);margin-top:0.35rem;display:block;">
+													ORCID: {member.orcid}
+												</a>
+											)}
 											{member.bio && (
 												<p style="font-size: 0.78rem; color: var(--text-light); margin-top: 0.5rem; line-height: 1.5;">
 													{member.bio}
@@ -290,22 +295,55 @@ const displayArticles = articles.length > 0 ? articles : sampleArticles;
 						</div>
 					)}
 
-					{/* Other board members */}
+					{/* Associate Editors */}
+					{displayBoard.filter((m) => !m.is_editor_in_chief && m.position === "Associate Editor").length > 0 && (
+						<div style="margin-bottom: 2rem;">
+							<h3 style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; font-family: var(--font-sans); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+								Associate Editors
+							</h3>
+							<div class="board-grid">
+								{displayBoard
+									.filter((m) => !m.is_editor_in_chief && m.position === "Associate Editor")
+									.map((member) => (
+										<div class="board-member" style="border-top: 2px solid #E65100;">
+											<div class="board-member-avatar" style="background: #E65100;">
+												{(member.name || "?").charAt(0).toUpperCase()}
+											</div>
+											<div class="board-member-name">{member.name}</div>
+											<div class="board-member-position" style="color:#E65100;">{member.position}</div>
+											<div class="board-member-affiliation">{member.affiliation}</div>
+											{member.orcid && (
+												<a href={`https://orcid.org/${member.orcid}`} target="_blank" style="font-size:0.75rem;color:var(--text-light);margin-top:0.35rem;display:block;">
+													ORCID: {member.orcid}
+												</a>
+											)}
+										</div>
+									))}
+							</div>
+						</div>
+					)}
+
+					{/* Editorial Board Members */}
 					<div>
-						<h3 style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 1rem; font-family: var(--font-sans); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
-							编委
+						<h3 style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; font-family: var(--font-sans); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+							Editorial Board Members
 						</h3>
 						<div class="board-grid">
 							{displayBoard
-								.filter((m) => !m.is_editor_in_chief)
+								.filter((m) => !m.is_editor_in_chief && m.position !== "Associate Editor")
 								.map((member) => (
 									<div class="board-member">
 										<div class="board-member-avatar">
-											{member.name.charAt(0)}
+											{(member.name || "?").charAt(0).toUpperCase()}
 										</div>
 										<div class="board-member-name">{member.name}</div>
-										<div class="board-member-position">{member.position || "编委"}</div>
+										<div class="board-member-position">{member.position || "Editorial Board Member"}</div>
 										<div class="board-member-affiliation">{member.affiliation}</div>
+										{member.orcid && (
+											<a href={`https://orcid.org/${member.orcid}`} target="_blank" style="font-size:0.75rem;color:var(--text-light);margin-top:0.35rem;display:block;">
+												ORCID: {member.orcid}
+											</a>
+										)}
 									</div>
 								))}
 						</div>
@@ -316,56 +354,56 @@ const displayArticles = articles.length > 0 ? articles : sampleArticles;
 			{/* Submit Guide Tab */}
 			{tab === "submit" && (
 				<div style="max-width: 760px;">
-					<h2 class="section-title" style="margin-bottom: 1.5rem;">投稿指南</h2>
+					<h2 class="section-title" style="margin-bottom: 1.5rem;">Submission Guide</h2>
 
 					<div class="card">
 						<div class="card-header">
-							<h3 style="font-size: 1rem;">投稿范围</h3>
+							<h3 style="font-size: 1rem;">Scope &amp; Aims</h3>
 						</div>
 						<div class="card-body">
 							<p>{journal.description}</p>
-							<p>本刊接受原创研究论文、综述文章、研究快报及评论性文章。所有稿件须未在其他期刊发表或投稿。</p>
+							<p>We accept original research articles, review articles, research letters, and commentary. All submissions must be unpublished and not under consideration elsewhere.</p>
 						</div>
 					</div>
 
 					<div class="card" style="margin-top: 1rem;">
 						<div class="card-header">
-							<h3 style="font-size: 1rem;">投稿要求</h3>
+							<h3 style="font-size: 1rem;">Submission Requirements</h3>
 						</div>
 						<div class="card-body">
 							<ul style="list-style: disc; padding-left: 1.5rem; color: var(--text-secondary);">
-								<li style="margin-bottom: 0.5rem;">稿件格式：PDF（推荐）或Word文档</li>
-								<li style="margin-bottom: 0.5rem;">文件大小：不超过50MB</li>
-								<li style="margin-bottom: 0.5rem;">语言：中文或英文均可</li>
-								<li style="margin-bottom: 0.5rem;">摘要：不超过300字</li>
-								<li style="margin-bottom: 0.5rem;">关键词：3-8个</li>
-								<li>引用格式：APA或MLA均可（但必须格式一致）</li>
+								<li style="margin-bottom: 0.5rem;">Format: PDF (preferred) or Word document</li>
+								<li style="margin-bottom: 0.5rem;">File size: Maximum 50 MB</li>
+								<li style="margin-bottom: 0.5rem;">Language: English or Chinese</li>
+								<li style="margin-bottom: 0.5rem;">Abstract: Maximum 300 words</li>
+								<li style="margin-bottom: 0.5rem;">Keywords: 3&ndash;8 keywords</li>
+								<li>Citation style: APA or MLA (must be consistent throughout)</li>
 							</ul>
 						</div>
 					</div>
 
 					<div class="card" style="margin-top: 1rem;">
 						<div class="card-header">
-							<h3 style="font-size: 1rem;">审稿流程</h3>
+							<h3 style="font-size: 1rem;">Peer Review Process</h3>
 						</div>
 						<div class="card-body">
 							<ol style="list-style: decimal; padding-left: 1.5rem; color: var(--text-secondary);">
-								<li style="margin-bottom: 0.75rem;">作者提交稿件 → 系统自动分配编号</li>
-								<li style="margin-bottom: 0.75rem;">编辑初审（桌审）→ 通过则进入同行评审</li>
-								<li style="margin-bottom: 0.75rem;">双盲同行评审（2-3名审稿人）</li>
-								<li style="margin-bottom: 0.75rem;">编辑综合审稿意见，作出接受/修改/拒稿决定</li>
-								<li style="margin-bottom: 0.75rem;">修改稿重新提交 → 可能再次送审</li>
-								<li>终稿接受 → 排版 → 正式发表</li>
+								<li style="margin-bottom: 0.75rem;">Author submits manuscript &rarr; System assigns tracking number</li>
+								<li style="margin-bottom: 0.75rem;">Editor desk review &rarr; If passed, sent for peer review</li>
+								<li style="margin-bottom: 0.75rem;">Double-blind peer review (2&ndash;3 reviewers)</li>
+								<li style="margin-bottom: 0.75rem;">Editor synthesizes reviews and issues Accept / Revise / Reject decision</li>
+								<li style="margin-bottom: 0.75rem;">Revised manuscript resubmitted &rarr; may go back for another round</li>
+								<li>Final acceptance &rarr; Typesetting &rarr; Publication</li>
 							</ol>
 						</div>
 					</div>
 
 					<div style="margin-top: 1.5rem; text-align: center;">
 						<a href="/author/submit" class="btn btn-lg btn-primary">
-							立即投递稿件
+							Submit Manuscript
 						</a>
 						<p style="margin-top: 0.75rem; font-size: 0.875rem; color: var(--text-light);">
-							投稿前需先<a href="/register">注册账号</a>
+							You need to <a href="/register">create an account</a> before submitting.
 						</p>
 					</div>
 				</div>

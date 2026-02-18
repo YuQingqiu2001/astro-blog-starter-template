@@ -1,6 +1,5 @@
-// Email sending via Mailchannels (works natively with Cloudflare Workers)
-// Requires SPF record: v=spf1 include:relay.mailchannels.net ~all
-// And DKIM setup for production use
+// Email sending via Resend (https://resend.com)
+// Set RESEND_API_KEY in your Cloudflare Worker environment variables
 
 interface EmailOptions {
 	to: string;
@@ -12,35 +11,33 @@ interface EmailOptions {
 	text?: string;
 }
 
-export async function sendEmail(options: EmailOptions): Promise<boolean> {
+export async function sendEmail(options: EmailOptions, apiKey: string): Promise<boolean> {
 	const payload = {
-		personalizations: [
-			{
-				to: [{ email: options.to, name: options.toName || options.to }],
-			},
-		],
-		from: {
-			email: options.from,
-			name: options.fromName || "Rubbish Publishing Group",
-		},
+		from: options.fromName ? `${options.fromName} <${options.from}>` : options.from,
+		to: [options.to],
 		subject: options.subject,
-		content: [
-			...(options.text
-				? [{ type: "text/plain", value: options.text }]
-				: []),
-			{ type: "text/html", value: options.html },
-		],
+		html: options.html,
+		...(options.text ? { text: options.text } : {}),
 	};
 
 	try {
-		const resp = await fetch("https://api.mailchannels.net/tx/v1/send", {
+		const resp = await fetch("https://api.resend.com/emails", {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				"Authorization": `Bearer ${apiKey}`,
+			},
 			body: JSON.stringify(payload),
 		});
-		return resp.status === 202;
-	} catch {
-		console.error("Failed to send email to", options.to);
+
+		if (!resp.ok) {
+			const body = await resp.text();
+			console.error(`Resend API error ${resp.status}:`, body);
+			return false;
+		}
+		return true;
+	} catch (err) {
+		console.error("Failed to send email to", options.to, err);
 		return false;
 	}
 }
@@ -51,7 +48,7 @@ export function verificationEmailHtml(code: string, siteName: string): string {
 <html>
 <head><meta charset="utf-8"><title>Email Verification</title></head>
 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f4f4f4;">
-  <div style="background:#1A2A4A; padding:24px; text-align:center; border-radius:8px 8px 0 0; display:flex; align-items:center; justify-content:center; gap:12px;">
+  <div style="background:#1A2A4A; padding:24px; text-align:center; border-radius:8px 8px 0 0;">
     <h1 style="color:#fff; margin:0; font-size:22px; font-weight:700;">${siteName}</h1>
   </div>
   <div style="background:#ffffff; padding:36px; border:1px solid #ddd; border-top:none;">

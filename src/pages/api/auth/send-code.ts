@@ -49,6 +49,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		}
 	}
 
+	const apiKey = env.RESEND_API_KEY;
+	if (!apiKey) {
+		console.error("RESEND_API_KEY is not configured");
+		return new Response(JSON.stringify({ success: false, error: "Email service is not configured. Please contact the administrator." }), {
+			status: 503,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
 	try {
 		const code = generateCode();
 		await storeVerificationCode(env.SESSIONS_KV, email, code);
@@ -66,10 +75,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			subject: `[${siteName}] Your verification code`,
 			html: verificationEmailHtml(code, siteName),
 			text: `Your verification code is: ${code}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, please ignore this email.`,
-		});
+		}, apiKey);
 
 		if (!sent) {
-			console.warn(`Email delivery failed for ${email} (code: ${code})`);
+			console.warn(`Email delivery failed for ${email}`);
 			// Remove rate limit so user can try again
 			await env.SESSIONS_KV.delete(rateLimitKey);
 			return new Response(JSON.stringify({ success: false, error: "Failed to send email. Please check your email address and try again." }), {
