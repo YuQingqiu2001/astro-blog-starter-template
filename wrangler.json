@@ -24,12 +24,6 @@
 			"bucket_name": "journal-manuscripts"
 		}
 	],
-	"kv_namespaces": [
-		{
-			"binding": "SESSIONS_KV",
-			"id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
-		}
-	],
 	"vars": {
 		"EMAIL_FROM": "noreply@example.com",
 		"SITE_NAME": "玄学前沿期刊群",
