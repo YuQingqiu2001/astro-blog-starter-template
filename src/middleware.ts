@@ -5,9 +5,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const token = getSessionToken(context.request);
 
 	const env = context.locals.runtime?.env;
-	if (token && env?.DB) {
+	if (token) {
 		try {
-			const session = await getSession({ kv: env.SESSIONS_KV, db: env.DB }, token);
+			const session = await getSession({ kv: env?.SESSIONS_KV, db: env?.DB }, token);
 			if (session) {
 				context.locals.user = {
 					id: session.userId,

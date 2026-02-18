@@ -4,8 +4,8 @@ import { getSession, getSessionToken } from "../lib/auth";
 
 const token = getSessionToken(Astro.request);
 const env = Astro.locals.runtime?.env;
-if (token && env?.DB) {
-	const session = await getSession({ kv: env.SESSIONS_KV, db: env.DB }, token);
+if (token) {
+	const session = await getSession({ kv: env?.SESSIONS_KV, db: env?.DB }, token);
 	if (session) {
 		return Astro.redirect(`/${session.role}`);
 	}

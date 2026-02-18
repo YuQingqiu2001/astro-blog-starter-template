@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { hashPassword, createSession, setSessionCookie } from "../../../lib/auth";
+import { createLocalUser, findLocalUserByEmail } from "../../../lib/local-auth";
 
 const allowedRoles = ["author", "editor", "reviewer"] as const;
 
@@ -45,24 +46,38 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	}
 
 	const env = locals.runtime?.env;
-	if (!env?.DB) {
-		return redirect("/register?error=service_unavailable");
-	}
 
 	try {
-		const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
-		if (existing) {
-			return redirect("/register?error=email_taken");
+		const passwordHash = await hashPassword(password);
+		let userId: number;
+
+		if (env?.DB) {
+			const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
+			if (existing) {
+				return redirect("/register?error=email_taken");
+			}
+
+			const result = await env.DB.prepare(`
+				INSERT INTO users (email, password_hash, name, role, journal_id, verified, affiliation)
+				VALUES (?, ?, ?, ?, ?, 1, ?)
+			`).bind(email, passwordHash, name, role, journalId, affiliation || null).run();
+			userId = result.meta.last_row_id as number;
+		} else {
+			const existing = findLocalUserByEmail(email);
+			if (existing) {
+				return redirect("/register?error=email_taken");
+			}
+			userId = createLocalUser({
+				email,
+				passwordHash,
+				name,
+				role: role as "author" | "editor" | "reviewer",
+				journalId,
+				affiliation: affiliation || null,
+			}).id;
 		}
 
-		const passwordHash = await hashPassword(password);
-		const result = await env.DB.prepare(`
-			INSERT INTO users (email, password_hash, name, role, journal_id, verified, affiliation)
-			VALUES (?, ?, ?, ?, ?, 1, ?)
-		`).bind(email, passwordHash, name, role, journalId, affiliation || null).run();
-
-		const userId = result.meta.last_row_id as number;
-		const token = await createSession({ kv: env.SESSIONS_KV, db: env.DB }, {
+		const token = await createSession({ kv: env?.SESSIONS_KV, db: env?.DB }, {
 			userId,
 			email,
 			name,

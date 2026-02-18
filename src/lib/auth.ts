@@ -92,6 +92,18 @@ interface AuthStore {
 	db?: D1Database;
 }
 
+interface MemorySessionRecord {
+	data: SessionData;
+	expiresAt: number;
+}
+
+const memorySessions = (() => {
+	const key = "__RPG_MEMORY_SESSIONS__";
+	const g = globalThis as unknown as Record<string, Map<string, MemorySessionRecord> | undefined>;
+	if (!g[key]) g[key] = new Map();
+	return g[key]!;
+})();
+
 export async function createSession(store: AuthStore, data: SessionData): Promise<string> {
 	const token = generateToken();
 
@@ -109,7 +121,8 @@ export async function createSession(store: AuthStore, data: SessionData): Promis
 		return token;
 	}
 
-	throw new Error("No session storage configured");
+	memorySessions.set(token, { data, expiresAt: Date.now() + 7 * 24 * 3600 * 1000 });
+	return token;
 }
 
 export async function getSession(store: AuthStore, token: string): Promise<SessionData | null> {
@@ -145,7 +158,13 @@ export async function getSession(store: AuthStore, token: string): Promise<Sessi
 		};
 	}
 
-	return null;
+	const memory = memorySessions.get(token);
+	if (!memory) return null;
+	if (memory.expiresAt <= Date.now()) {
+		memorySessions.delete(token);
+		return null;
+	}
+	return memory.data;
 }
 
 export async function destroySession(store: AuthStore, token: string): Promise<void> {
@@ -155,8 +174,11 @@ export async function destroySession(store: AuthStore, token: string): Promise<v
 	}
 	if (store.db) {
 		await store.db.prepare("DELETE FROM user_sessions WHERE token = ?").bind(token).run();
+		return;
 	}
+	memorySessions.delete(token);
 }
+
 
 export async function storeVerificationCode(
 	store: AuthStore,

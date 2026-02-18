@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { verifyPassword, createSession, setSessionCookie } from "../../../lib/auth";
+import { findLocalUserByEmail } from "../../../lib/local-auth";
 
 function normalizeRedirectPath(input: string): string {
 	if (!input || !input.startsWith("/") || input.startsWith("//")) {
@@ -36,21 +37,34 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	}
 
 	const env = locals.runtime?.env;
-	if (!env?.DB) {
-		return redirect("/login?error=unavailable");
-	}
 
 	try {
-		const user = await env.DB.prepare(
-			"SELECT id, email, password_hash, name, role, journal_id FROM users WHERE email = ? AND verified = 1"
-		).bind(email).first() as {
+		let user: {
 			id: number;
 			email: string;
 			password_hash: string;
 			name: string;
 			role: "author" | "editor" | "reviewer";
 			journal_id: number | null;
-		} | null;
+		} | null = null;
+
+		if (env?.DB) {
+			user = await env.DB.prepare(
+				"SELECT id, email, password_hash, name, role, journal_id FROM users WHERE email = ? AND verified = 1"
+			).bind(email).first() as typeof user;
+		} else {
+			const local = findLocalUserByEmail(email);
+			if (local && local.verified === 1) {
+				user = {
+					id: local.id,
+					email: local.email,
+					password_hash: local.passwordHash,
+					name: local.name,
+					role: local.role,
+					journal_id: local.journalId,
+				};
+			}
+		}
 
 		if (!user) {
 			return redirect("/login?error=invalid");
@@ -65,7 +79,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 			return redirect("/login?error=invalid");
 		}
 
-		const token = await createSession({ kv: env.SESSIONS_KV, db: env.DB }, {
+		const token = await createSession({ kv: env?.SESSIONS_KV, db: env?.DB }, {
 			userId: user.id,
 			email: user.email,
 			name: user.name,
