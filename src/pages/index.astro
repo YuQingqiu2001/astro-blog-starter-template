@@ -1,50 +1,286 @@
 ---
-import BaseHead from '../components/BaseHead.astro';
-import Header from '../components/Header.astro';
-import Footer from '../components/Footer.astro';
-import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { journals, mainJournal, subJournals, featuredResearch } from "../data/journals";
+
+// Fetch latest published articles from D1
+let latestArticles: any[] = [];
+let dbError = false;
+
+try {
+	const env = Astro.locals.runtime?.env;
+	if (env?.DB) {
+		const result = await env.DB.prepare(`
+			SELECT pa.*, j.name as journal_name, j.slug as journal_slug
+			FROM published_articles pa
+			JOIN journals j ON pa.journal_id = j.id
+			ORDER BY pa.published_at DESC
+			LIMIT 3
+		`).all();
+		latestArticles = result.results as any[];
+	}
+} catch (e) {
+	dbError = true;
+}
+
+// Fallback sample articles if DB not available
+const sampleArticles = [
+	{
+		id: 1,
+		title: "水是湿的：一项系统综述与荟萃分析",
+		abstract: '本文对过去三十年来关于\u201c水是湿的\u201d这一假说的文献进行了全面系统综述。通过对4721篇相关文献的荟萃分析，以95%的置信区间证实了水在常温常压下确实具有湿润特性（p&lt;0.001）。',
+		authors: "张伟, 李明, 王芳",
+		journal_name: "玄学前沿",
+		journal_slug: "frontiers-metaphysics",
+		doi: "10.0000/FIM.2024.001",
+		published_at: new Date(Date.now() - 30 * 86400000).toISOString(),
+	},
+	{
+		id: 2,
+		title: "为什么猫喜欢盒子：量子叠加态视角",
+		abstract: '我们提出了\u201c薛定谔吸引力假说\u201d：在观测之前，猫同时处于\u201c喜欢盒子\u201d和\u201c不喜欢盒子\u201d的量子叠加态。本研究招募了47只猫作为受试者，验证了该假说。',
+		authors: "陈猫博士, 刘薛定谔",
+		journal_name: "无用科学年刊",
+		journal_slug: "annals-unnecessary-science",
+		doi: "10.0000/AUS.2024.042",
+		published_at: new Date(Date.now() - 15 * 86400000).toISOString(),
+	},
+	{
+		id: 3,
+		title: "拖延症的进化优势：来自博士研究生群体的队列研究",
+		abstract: "通过对312名博士研究生为期五年的追踪调查，我们发现拖延者在论文答辩时的平均情绪稳定性显著高于非拖延者（效应量d=0.23）。",
+		authors: "周德高, 吴等等, 郑明天",
+		journal_name: "显见发现学报",
+		journal_slug: "journal-obvious-discoveries",
+		doi: "10.0000/JOD.2024.007",
+		published_at: new Date(Date.now() - 7 * 86400000).toISOString(),
+	},
+];
+
+const displayArticles = latestArticles.length > 0 ? latestArticles : sampleArticles;
 ---
 
-<!doctype html>
-<html lang="en">
-	<head>
-		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-	</head>
-	<body>
-		<Header />
-		<main>
-			<h1>🧑‍🚀 Hello, Astronaut!</h1>
-			<p>
-				Welcome to the official <a href="https://astro.build/">Astro</a> blog starter template. This
-				template serves as a lightweight, minimally-styled starting point for anyone looking to build
-				a personal website, blog, or portfolio with Astro.
-			</p>
-			<p>
-				This template comes with a few integrations already configured in your
-				<code>astro.config.mjs</code> file. You can customize your setup with
-				<a href="https://astro.build/integrations">Astro Integrations</a> to add tools like Tailwind,
-				React, or Vue to your project.
-			</p>
-			<p>Here are a few ideas on how to get started with the template:</p>
-			<ul>
-				<li>Edit this page in <code>src/pages/index.astro</code></li>
-				<li>Edit the site header items in <code>src/components/Header.astro</code></li>
-				<li>Add your name to the footer in <code>src/components/Footer.astro</code></li>
-				<li>Check out the included blog posts in <code>src/content/blog/</code></li>
-				<li>Customize the blog post page layout in <code>src/layouts/BlogPost.astro</code></li>
-			</ul>
-			<p>
-				Have fun! If you get stuck, remember to <a href="https://docs.astro.build/"
-					>read the docs
-				</a> or <a href="https://astro.build/chat">join us on Discord</a> to ask questions.
-			</p>
-			<p>
-				Looking for a blog template with a bit more personality? Check out <a
-					href="https://github.com/Charca/astro-blog-template"
-					>astro-blog-template
-				</a> by <a href="https://twitter.com/Charca">Maxi Ferreira</a>.
-			</p>
-		</main>
-		<Footer />
-	</body>
-</html>
+<BaseLayout
+	title="玄学前沿期刊群 - 探索人类认知的极限"
+	description="致力于发表最抽象、最深刻的研究成果，为全球研究人员提供最优质的摸鱼素材。"
+>
+	<!-- ============================================================
+		MODULE 1: Featured Research (Series Introduction)
+	   ============================================================ -->
+	<section class="featured-section">
+		<div class="container">
+			<div class="section-header" style="margin-bottom: 1.5rem;">
+				<h2 class="section-title">精选研究亮点</h2>
+				<a href="/journals" class="section-more" style="color: rgba(255,255,255,0.6);">浏览所有期刊 →</a>
+			</div>
+
+			<div class="featured-grid">
+				<!-- Main featured article -->
+				<div class="featured-main">
+					<div class="journal-tag">{featuredResearch[0].journal}</div>
+					<h2>{featuredResearch[0].title}</h2>
+					<p class="authors">{featuredResearch[0].authors}</p>
+					<p class="excerpt">{featuredResearch[0].excerpt}</p>
+					<p class="doi">DOI: {featuredResearch[0].doi}</p>
+				</div>
+
+				<!-- Sidebar featured articles -->
+				<div class="featured-sidebar">
+					{featuredResearch.slice(1).map((article) => (
+						<a href={`/journals/${article.journalSlug}`} class="featured-item">
+							<div class="journal-tag">{article.journal}</div>
+							<h4>{article.title}</h4>
+							<p style="color: rgba(255,255,255,0.55); font-size: 0.8rem; margin-top: 0.5rem;">{article.authors}</p>
+						</a>
+					))}
+
+					<!-- Journal series intro card -->
+					<div class="featured-item" style="border-color: rgba(198, 40, 40, 0.3); background: rgba(198, 40, 40, 0.05);">
+						<div class="journal-tag" style="color: #ef5350;">关于本期刊群</div>
+						<h4 style="color: rgba(255,255,255,0.9); font-size: 0.85rem; line-height: 1.5;">
+							玄学前沿期刊群汇集了来自全球各领域最具创意（和争议性）的研究成果，
+							旨在推动人类对"没用知识"的系统探索。
+						</h4>
+						<a href="/journals" style="color: #ef9a9a; font-size: 0.8rem; margin-top: 0.5rem; display: block;">
+							了解我们的期刊 →
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ============================================================
+		MODULE 2: Latest Published Articles
+	   ============================================================ -->
+	<section class="home-section">
+		<div class="container">
+			<div class="section-header">
+				<h2 class="section-title">最新发表文章</h2>
+				<a href="/search" class="section-more">查看全部 →</a>
+			</div>
+
+			<div class="grid-3">
+				{displayArticles.map((article) => (
+					<article class="article-card">
+						<div class="journal-tag">{article.journal_name}</div>
+						<h3>
+							<a href={`/journals/${article.journal_slug}`}>{article.title}</a>
+						</h3>
+						<p class="authors">{article.authors}</p>
+						<p class="excerpt">{article.abstract}</p>
+						<div class="meta">
+							<span>
+								{new Date(article.published_at).toLocaleDateString("zh-CN", {
+									year: "numeric",
+									month: "long",
+									day: "numeric",
+								})}
+							</span>
+							{article.doi && (
+								<span class="font-mono" style="font-size: 0.75rem;">
+									DOI: {article.doi}
+								</span>
+							)}
+						</div>
+					</article>
+				))}
+			</div>
+		</div>
+	</section>
+
+	<!-- ============================================================
+		MODULE 3: All Journals (Main + Sub) with Search
+	   ============================================================ -->
+	<section class="home-section" style="background: var(--bg-sidebar);">
+		<div class="container">
+			<div class="section-header">
+				<h2 class="section-title">期刊目录</h2>
+				<a href="/journals" class="section-more">所有期刊 →</a>
+			</div>
+
+			<!-- Journal Search Engine -->
+			<div class="search-bar" id="journal-search-bar">
+				<input
+					type="text"
+					id="journal-search-input"
+					class="search-input"
+					placeholder="搜索期刊名称、领域或ISSN..."
+					autocomplete="off"
+				/>
+				<button class="search-btn" type="button" onclick="doSearch()">搜索</button>
+			</div>
+
+			<!-- Main Journal (large card) -->
+			<div id="main-journal-card" style="margin-bottom: 2rem;">
+				<a href={`/journals/${mainJournal.slug}`} class="journal-card-main">
+					<div class="journal-card-main-cover">
+						<span class="journal-card-main-badge">旗舰期刊</span>
+						<div class="journal-card-main-title">{mainJournal.name}</div>
+						<div class="journal-card-main-title-en">{mainJournal.nameEn}</div>
+						<div class="journal-card-main-stats">
+							<div class="stat-item">
+								<div class="stat-value">{mainJournal.impactFactor}</div>
+								<div class="stat-label">影响因子</div>
+							</div>
+							<div class="stat-item">
+								<div class="stat-value">2010</div>
+								<div class="stat-label">创刊年份</div>
+							</div>
+							<div class="stat-item">
+								<div class="stat-value">6</div>
+								<div class="stat-label">系列期刊</div>
+							</div>
+						</div>
+					</div>
+					<div class="journal-card-main-content">
+						<div>
+							<p class="journal-card-main-issn">ISSN: {mainJournal.issn}</p>
+							<p class="journal-card-main-desc">{mainJournal.description}</p>
+						</div>
+						<span class="btn-view-journal">进入期刊 →</span>
+					</div>
+				</a>
+			</div>
+
+			<!-- Sub-journals grid -->
+			<div id="sub-journals-grid" class="grid-3">
+				{subJournals.map((journal) => (
+					<a
+						href={`/journals/${journal.slug}`}
+						class="journal-card"
+						data-name={journal.name}
+						data-name-en={journal.nameEn}
+						data-field={journal.field}
+						data-issn={journal.issn}
+					>
+						<div class="journal-card-stripe" style={`background: ${journal.color}`}></div>
+						<div class="journal-card-body">
+							<div class="journal-card-name">{journal.name}</div>
+							<div class="journal-card-name-en">{journal.nameEn}</div>
+							<p class="journal-card-desc">{journal.description}</p>
+							<div class="journal-card-meta">
+								<div class="journal-card-if">
+									IF: <strong>{journal.impactFactor}</strong>
+								</div>
+								<span class="journal-card-field">{journal.field}</span>
+							</div>
+						</div>
+					</a>
+				))}
+			</div>
+
+			<div id="search-no-results" style="display: none; text-align: center; padding: 2rem; color: var(--text-secondary);">
+				<p>未找到匹配的期刊，请尝试其他关键词。</p>
+			</div>
+		</div>
+	</section>
+</BaseLayout>
+
+<script>
+	function doSearch() {
+		const input = document.getElementById("journal-search-input") as HTMLInputElement;
+		const query = input.value.trim().toLowerCase();
+		const cards = document.querySelectorAll("#sub-journals-grid .journal-card");
+		const mainCard = document.getElementById("main-journal-card");
+		const noResults = document.getElementById("search-no-results");
+
+		if (!query) {
+			cards.forEach((c) => ((c as HTMLElement).style.display = "block"));
+			if (mainCard) mainCard.style.display = "block";
+			if (noResults) noResults.style.display = "none";
+			return;
+		}
+
+		let visibleCount = 0;
+		cards.forEach((card) => {
+			const el = card as HTMLElement;
+			const name = (el.dataset.name || "").toLowerCase();
+			const nameEn = (el.dataset.nameEn || "").toLowerCase();
+			const field = (el.dataset.field || "").toLowerCase();
+			const issn = (el.dataset.issn || "").toLowerCase();
+			const match =
+				name.includes(query) ||
+				nameEn.includes(query) ||
+				field.includes(query) ||
+				issn.includes(query);
+			el.style.display = match ? "block" : "none";
+			if (match) visibleCount++;
+		});
+
+		// Also check main journal
+		const mainKeywords = ["玄学前沿", "frontiers in metaphysics", "综合", "0000-0001"];
+		const mainMatch = mainKeywords.some((k) => k.includes(query));
+		if (mainCard) mainCard.style.display = mainMatch ? "block" : "none";
+		if (mainMatch) visibleCount++;
+
+		if (noResults) noResults.style.display = visibleCount === 0 ? "block" : "none";
+	}
+
+	// Allow pressing Enter to search
+	document.getElementById("journal-search-input")?.addEventListener("keydown", (e) => {
+		if (e.key === "Enter") doSearch();
+	});
+
+	// Live search on input
+	document.getElementById("journal-search-input")?.addEventListener("input", doSearch);
+</script>

@@ -1,0 +1,114 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { journals, mainJournal, subJournals } from "../../data/journals";
+
+const q = new URL(Astro.request.url).searchParams.get("q") || "";
+const filteredJournals = q
+	? journals.filter(
+			(j) =>
+				j.name.includes(q) ||
+				j.nameEn.toLowerCase().includes(q.toLowerCase()) ||
+				j.field.includes(q) ||
+				j.issn.includes(q)
+		)
+	: journals;
+---
+
+<BaseLayout title="期刊目录 - 玄学前沿期刊群">
+	<div class="featured-section" style="padding: 2rem 0;">
+		<div class="container">
+			<h1 style="color: #fff; font-size: 1.75rem; margin-bottom: 0.5rem;">期刊目录</h1>
+			<p style="color: rgba(255,255,255,0.65); font-size: 0.9rem;">
+				玄学前沿期刊群旗下共 {journals.length} 本学术期刊，覆盖综合、自然科学、社会科学等多个领域的玄学研究。
+			</p>
+		</div>
+	</div>
+
+	<div class="page-content">
+		<div class="container">
+			<!-- Search -->
+			<form method="get" action="/journals" class="search-bar" style="margin-bottom: 2rem;">
+				<input
+					type="text"
+					name="q"
+					class="search-input"
+					value={q}
+					placeholder="搜索期刊名称、领域或ISSN..."
+				/>
+				<button type="submit" class="search-btn">搜索</button>
+			</form>
+
+			{q && (
+				<p class="text-muted" style="margin-bottom: 1.5rem;">
+					搜索 "<strong>{q}</strong>" 的结果：找到 {filteredJournals.length} 本期刊
+					<a href="/journals" style="margin-left: 0.5rem; font-size: 0.85rem;">清除</a>
+				</p>
+			)}
+
+			{/* Main journal */}
+			{!q || filteredJournals.some((j) => j.isMain) ? (
+				<div style="margin-bottom: 2.5rem;">
+					<h2 class="section-title" style="margin-bottom: 1.25rem;">旗舰期刊</h2>
+					<a href={`/journals/${mainJournal.slug}`} class="journal-card-main">
+						<div class="journal-card-main-cover">
+							<span class="journal-card-main-badge">旗舰期刊</span>
+							<div class="journal-card-main-title">{mainJournal.name}</div>
+							<div class="journal-card-main-title-en">{mainJournal.nameEn}</div>
+							<div class="journal-card-main-stats">
+								<div class="stat-item">
+									<div class="stat-value">{mainJournal.impactFactor}</div>
+									<div class="stat-label">影响因子</div>
+								</div>
+								<div class="stat-item">
+									<div class="stat-value">2010</div>
+									<div class="stat-label">创刊年份</div>
+								</div>
+								<div class="stat-item">
+									<div class="stat-value">{journals.length}</div>
+									<div class="stat-label">系列期刊</div>
+								</div>
+							</div>
+						</div>
+						<div class="journal-card-main-content">
+							<div>
+								<p class="journal-card-main-issn">ISSN: {mainJournal.issn}</p>
+								<p class="journal-card-main-desc">{mainJournal.description}</p>
+							</div>
+							<span class="btn-view-journal">进入期刊 →</span>
+						</div>
+					</a>
+				</div>
+			) : null}
+
+			{/* Sub journals */}
+			<div>
+				<h2 class="section-title" style="margin-bottom: 1.25rem;">系列子刊</h2>
+				{filteredJournals.filter((j) => !j.isMain).length === 0 ? (
+					<div class="alert alert-info">未找到匹配的期刊。</div>
+				) : (
+					<div class="grid-3">
+						{filteredJournals
+							.filter((j) => !j.isMain)
+							.map((journal) => (
+								<a href={`/journals/${journal.slug}`} class="journal-card">
+									<div class="journal-card-stripe" style={`background: ${journal.color}`}></div>
+									<div class="journal-card-body">
+										<div class="journal-card-name">{journal.name}</div>
+										<div class="journal-card-name-en">{journal.nameEn}</div>
+										<p class="journal-card-desc">{journal.description}</p>
+										<div class="journal-card-meta">
+											<div class="journal-card-if">
+												IF: <strong>{journal.impactFactor}</strong>
+												<span style="margin-left: 0.75rem; color: var(--text-light);">ISSN: {journal.issn}</span>
+											</div>
+											<span class="journal-card-field">{journal.field}</span>
+										</div>
+									</div>
+								</a>
+							))}
+					</div>
+				)}
+			</div>
+		</div>
+	</div>
+</BaseLayout>

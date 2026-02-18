@@ -1,0 +1,159 @@
+---
+import DashboardLayout from "../../../layouts/DashboardLayout.astro";
+
+const user = Astro.locals.user!;
+const env = Astro.locals.runtime?.env;
+const id = parseInt(Astro.params.id!);
+
+let review: any = null;
+let manuscript: any = null;
+
+try {
+	if (env?.DB) {
+		const reviewResult = await env.DB.prepare(`
+			SELECT r.*, m.title, m.authors, m.abstract, m.keywords, m.r2_key, j.name as journal_name
+			FROM reviews r
+			JOIN manuscripts m ON r.manuscript_id = m.id
+			JOIN journals j ON m.journal_id = j.id
+			WHERE r.manuscript_id = ? AND r.reviewer_id = ?
+		`).bind(id, user.id).first();
+		review = reviewResult;
+
+		// Mark as in progress if just assigned
+		if (review?.status === "assigned" && env?.DB) {
+			await env.DB.prepare(
+				"UPDATE reviews SET status = 'in_progress' WHERE manuscript_id = ? AND reviewer_id = ?"
+			).bind(id, user.id).run();
+			review.status = "in_progress";
+		}
+	}
+} catch (e) {
+	// DB not available
+}
+
+if (!review && env?.DB) {
+	return Astro.redirect("/reviewer");
+}
+
+// Demo fallback
+if (!review) {
+	review = {
+		manuscript_id: id,
+		title: "示例稿件：水的湿润性研究",
+		authors: "张伟, 李明",
+		abstract: "本研究系统地研究了水的湿润特性...",
+		keywords: "水, 湿润, 系统综述",
+		journal_name: "玄学前沿",
+		status: "in_progress",
+		r2_key: null,
+	};
+}
+---
+
+<DashboardLayout title="审稿" activeNav="/reviewer">
+	<div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+		<a href="/reviewer" class="btn btn-sm btn-secondary">← 返回</a>
+		<h1 class="dashboard-page-title" style="margin-bottom: 0;">审稿意见</h1>
+	</div>
+
+	<!-- Manuscript Info -->
+	<div class="card" style="margin-bottom: 1.25rem;">
+		<div class="card-header">
+			<h2 style="font-size: 1rem;">稿件信息（双盲匿名）</h2>
+		</div>
+		<div class="card-body">
+			<h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">{review.title}</h3>
+			<p class="text-sm text-muted" style="margin-bottom: 0.5rem;">
+				期刊：{review.journal_name}
+			</p>
+			{review.keywords && (
+				<p class="text-sm" style="margin-bottom: 0.75rem;">
+					关键词：<span class="text-muted">{review.keywords}</span>
+				</p>
+			)}
+			{review.abstract && (
+				<div style="background: var(--bg-sidebar); padding: 1rem; border-radius: var(--radius-sm); margin-top: 0.75rem;">
+					<p class="text-xs text-muted" style="font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">摘要</p>
+					<p class="text-sm">{review.abstract}</p>
+				</div>
+			)}
+			{review.r2_key && (
+				<div style="margin-top: 1rem;">
+					<a
+						href={`/api/download/${encodeURIComponent(review.r2_key)}`}
+						class="btn btn-primary"
+					>
+						📄 下载完整稿件
+					</a>
+				</div>
+			)}
+		</div>
+	</div>
+
+	<!-- Review Form -->
+	{review.status !== "submitted" ? (
+		<div class="card">
+			<div class="card-header">
+				<h2 style="font-size: 1rem;">提交审稿意见</h2>
+			</div>
+			<div class="card-body">
+				<form action={`/api/manuscripts/${id}/review`} method="post" enctype="multipart/form-data">
+					<div class="form-group">
+						<label class="form-label">推荐决定 <span>*</span></label>
+						<div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem;">
+							{[
+								{ value: "accept", label: "接受", badge: "badge-accepted" },
+								{ value: "minor_revision", label: "小修后接受", badge: "badge-resubmitted" },
+								{ value: "major_revision", label: "大修后重审", badge: "badge-revision" },
+								{ value: "reject", label: "拒稿", badge: "badge-rejected" },
+							].map((opt) => (
+								<label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+									<input type="radio" name="recommendation" value={opt.value} required />
+									<span class={`badge ${opt.badge}`}>{opt.label}</span>
+								</label>
+							))}
+						</div>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label">审稿意见（给作者）<span>*</span></label>
+						<textarea
+							name="comments"
+							class="form-textarea"
+							rows="10"
+							required
+							placeholder="请详细说明您的审稿意见，包括：
+1. 稿件的主要贡献和创新性
+2. 研究方法的合理性
+3. 结果和结论的可靠性
+4. 文字和写作质量
+5. 具体修改建议（如有）
+
+注：本部分将在去除审稿人信息后发送给作者。"
+						></textarea>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label">详细审稿报告 (PDF, 可选)</label>
+						<div class="upload-area" onclick="document.getElementById('review-file').click()">
+							<p>上传详细审稿报告（可选）</p>
+							<p class="text-xs text-muted" style="margin-top: 0.25rem;">PDF格式，最大20MB</p>
+						</div>
+						<input type="file" id="review-file" name="review_file" accept=".pdf" style="display: none;" />
+					</div>
+
+					<div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+						<button type="submit" class="btn btn-primary btn-lg">
+							提交审稿意见
+						</button>
+						<a href="/reviewer" class="btn btn-secondary">稍后再审</a>
+					</div>
+				</form>
+			</div>
+		</div>
+	) : (
+		<div class="alert alert-success">
+			您已提交了本稿件的审稿意见。感谢您对学术出版的贡献！
+		</div>
+	)}
+</DashboardLayout>

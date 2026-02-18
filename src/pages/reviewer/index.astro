@@ -1,0 +1,140 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+
+const user = Astro.locals.user!;
+const env = Astro.locals.runtime?.env;
+
+let assignments: any[] = [];
+let stats = { assigned: 0, in_progress: 0, submitted: 0 };
+
+try {
+	if (env?.DB) {
+		const result = await env.DB.prepare(`
+			SELECT r.*, m.title, m.authors, m.abstract, j.name as journal_name
+			FROM reviews r
+			JOIN manuscripts m ON r.manuscript_id = m.id
+			JOIN journals j ON m.journal_id = j.id
+			WHERE r.reviewer_id = ?
+			ORDER BY r.created_at DESC
+		`).bind(user.id).all();
+		assignments = result.results as any[];
+
+		for (const a of assignments) {
+			if (a.status === "assigned") stats.assigned++;
+			else if (a.status === "in_progress") stats.in_progress++;
+			else if (a.status === "submitted") stats.submitted++;
+		}
+	}
+} catch (e) {
+	// DB not available
+}
+
+const activeAssignments = assignments.filter((a) => a.status !== "submitted" && a.status !== "declined");
+const completedAssignments = assignments.filter((a) => a.status === "submitted" || a.status === "declined");
+---
+
+<DashboardLayout title="审稿工作台" activeNav="/reviewer">
+	<h1 class="dashboard-page-title">🔍 审稿工作台</h1>
+
+	<!-- Stats -->
+	<div class="stats-row">
+		<div class="stat-card">
+			<div class="number" style="color: var(--orange);">{stats.assigned}</div>
+			<div class="label">待接受邀请</div>
+		</div>
+		<div class="stat-card">
+			<div class="number" style="color: var(--primary);">{stats.in_progress}</div>
+			<div class="label">审稿中</div>
+		</div>
+		<div class="stat-card">
+			<div class="number" style="color: var(--green);">{stats.submitted}</div>
+			<div class="label">已完成</div>
+		</div>
+		<div class="stat-card">
+			<div class="number">{assignments.length}</div>
+			<div class="label">总任务数</div>
+		</div>
+	</div>
+
+	<!-- Active assignments -->
+	<h2 class="section-title" style="margin-bottom: 1.25rem;">待审稿件</h2>
+	{activeAssignments.length === 0 ? (
+		<div class="alert alert-info" style="margin-bottom: 2rem;">
+			暂无待审稿件。当有编辑分配审稿任务时，您会收到邮件通知。
+		</div>
+	) : (
+		<div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem;">
+			{activeAssignments.map((assignment) => (
+				<div class="card">
+					<div class="card-body">
+						<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+							<div style="flex: 1;">
+								<div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+									<span class="badge badge-under-review">
+										{assignment.status === "assigned" ? "待接受" : "审稿中"}
+									</span>
+									<span class="text-xs text-muted">{assignment.journal_name}</span>
+									{assignment.due_date && (
+										<span class="text-xs text-muted">
+											截止：{new Date(assignment.due_date).toLocaleDateString("zh-CN")}
+										</span>
+									)}
+								</div>
+								<h3 style="font-size: 1rem; margin-bottom: 0.5rem;">{assignment.title}</h3>
+								<p class="text-sm text-muted">{assignment.authors}</p>
+								{assignment.abstract && (
+									<p class="text-sm text-muted" style="margin-top: 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+										{assignment.abstract}
+									</p>
+								)}
+							</div>
+							<div style="display: flex; flex-direction: column; gap: 0.5rem; flex-shrink: 0;">
+								<a href={`/reviewer/manuscript/${assignment.manuscript_id}`} class="btn btn-sm btn-primary">
+									{assignment.status === "assigned" ? "接受并审稿" : "继续审稿"}
+								</a>
+								{assignment.status === "assigned" && (
+									<form action={`/api/manuscripts/${assignment.manuscript_id}/decline-review`} method="post" style="display: inline;">
+										<button type="submit" class="btn btn-sm btn-secondary">婉拒</button>
+									</form>
+								)}
+							</div>
+						</div>
+					</div>
+				</div>
+			))}
+		</div>
+	)}
+
+	<!-- Completed assignments -->
+	{completedAssignments.length > 0 && (
+		<>
+			<h2 class="section-title" style="margin-bottom: 1.25rem;">已完成审稿</h2>
+			<table class="manuscript-table">
+				<thead>
+					<tr>
+						<th>稿件标题</th>
+						<th>期刊</th>
+						<th>提交时间</th>
+						<th>状态</th>
+					</tr>
+				</thead>
+				<tbody>
+					{completedAssignments.map((a) => (
+						<tr>
+							<td class="manuscript-title-cell">{a.title}</td>
+							<td class="text-sm text-muted">{a.journal_name}</td>
+							<td class="text-sm text-muted">
+								{a.submitted_at ? new Date(a.submitted_at).toLocaleDateString("zh-CN") : "-"}
+							</td>
+							<td>
+								<span class={`badge ${a.status === "submitted" ? "badge-accepted" : "badge-rejected"}`}>
+									{a.status === "submitted" ? "已提交审稿意见" : "已婉拒"}
+								</span>
+							</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</>
+	)}
+</DashboardLayout>

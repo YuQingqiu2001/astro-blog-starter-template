@@ -1,0 +1,104 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const url = new URL(Astro.request.url);
+const q = url.searchParams.get("q") || "";
+
+let results: any[] = [];
+let error = false;
+
+if (q) {
+	try {
+		const env = Astro.locals.runtime?.env;
+		if (env?.DB) {
+			const r = await env.DB.prepare(`
+				SELECT pa.*, j.name as journal_name, j.slug as journal_slug
+				FROM published_articles pa
+				JOIN journals j ON pa.journal_id = j.id
+				WHERE pa.title LIKE ? OR pa.abstract LIKE ? OR pa.authors LIKE ? OR pa.keywords LIKE ?
+				ORDER BY pa.published_at DESC
+				LIMIT 30
+			`).bind(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`).all();
+			results = r.results as any[];
+		}
+	} catch {
+		error = true;
+	}
+}
+---
+
+<BaseLayout title={q ? `搜索"${q}" - 玄学前沿` : "文献检索 - 玄学前沿"}>
+	<div class="featured-section" style="padding: 2rem 0;">
+		<div class="container">
+			<h1 style="color: #fff; margin-bottom: 1rem;">文献检索</h1>
+			<form action="/search" method="get" class="search-bar" style="max-width: 700px;">
+				<input
+					type="text"
+					name="q"
+					class="search-input"
+					value={q}
+					placeholder="搜索论文标题、作者、关键词..."
+					autofocus
+				/>
+				<button type="submit" class="search-btn">搜索</button>
+			</form>
+		</div>
+	</div>
+
+	<div class="page-content">
+		<div class="container">
+			{q ? (
+				<>
+					<p class="text-muted" style="margin-bottom: 1.5rem;">
+						搜索 "<strong>{q}</strong>" 的结果：找到 <strong>{results.length}</strong> 篇文章
+					</p>
+
+					{error && (
+						<div class="alert alert-error">搜索服务暂时不可用。</div>
+					)}
+
+					{results.length === 0 && !error ? (
+						<div class="alert alert-info">
+							未找到与 "{q}" 相关的文章。请尝试其他关键词。
+						</div>
+					) : (
+						<div style="display: flex; flex-direction: column; gap: 1.25rem;">
+							{results.map((article) => (
+								<article class="article-card">
+									<div class="journal-tag">{article.journal_name}</div>
+									<h3 style="font-size: 1.05rem; margin-bottom: 0.5rem;">{article.title}</h3>
+									<p class="authors">{article.authors}</p>
+									{article.abstract && <p class="excerpt">{article.abstract}</p>}
+									<div class="meta">
+										<span>
+											{new Date(article.published_at).toLocaleDateString("zh-CN", {
+												year: "numeric", month: "long", day: "numeric"
+											})}
+										</span>
+										{article.doi && (
+											<span class="font-mono" style="font-size: 0.75rem;">
+												DOI: {article.doi}
+											</span>
+										)}
+									</div>
+									<div style="margin-top: 0.75rem;">
+										{article.r2_key && (
+											<a href={`/api/download/${encodeURIComponent(article.r2_key)}`} class="btn btn-sm btn-primary">
+												下载 PDF
+											</a>
+										)}
+									</div>
+								</article>
+							))}
+						</div>
+					)}
+				</>
+			) : (
+				<div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+					<p style="font-size: 1.25rem; margin-bottom: 1rem;">请输入关键词开始搜索</p>
+					<p class="text-sm">可搜索论文标题、作者姓名、关键词或摘要内容</p>
+				</div>
+			)}
+		</div>
+	</div>
+</BaseLayout>

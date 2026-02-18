@@ -1,0 +1,159 @@
+---
+import "../styles/global.css";
+import { journals } from "../data/journals";
+
+interface Props {
+	title?: string;
+	description?: string;
+	noHeader?: boolean;
+	noFooter?: boolean;
+}
+
+const {
+	title = "玄学前沿期刊群",
+	description = "致力于发表最抽象、最深刻的研究成果，为全球研究人员提供最优质的摸鱼素材。",
+	noHeader = false,
+	noFooter = false,
+} = Astro.props;
+
+const user = Astro.locals.user;
+const pathname = new URL(Astro.request.url).pathname;
+
+const subJournals = journals.filter((j) => !j.isMain);
+---
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>{title}</title>
+	<meta name="description" content={description} />
+	<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+	<meta property="og:title" content={title} />
+	<meta property="og:description" content={description} />
+	<meta property="og:type" content="website" />
+</head>
+<body>
+	{!noHeader && (
+		<header class="site-header">
+			<!-- Top bar -->
+			<div class="header-top">
+				<div class="container">
+					<div class="header-top-inner">
+						<div class="header-top-links">
+							<a href="/journals">所有期刊</a>
+							<a href="/join-editorial-board">加入编委会</a>
+							<a href="/about">关于我们</a>
+						</div>
+						<div class="header-top-links">
+							{user ? (
+								<>
+									<a href={`/${user.role}`}>我的工作台</a>
+									<a href="/api/auth/logout">退出登录</a>
+								</>
+							) : (
+								<>
+									<a href="/login">登录</a>
+									<a href="/register">注册</a>
+								</>
+							)}
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Main header -->
+			<div class="header-main">
+				<div class="container">
+					<div class="header-main-inner">
+						<a href="/" class="site-logo">
+							<span class="logo-zh">玄学前沿</span>
+							<span class="logo-en">Frontiers in Metaphysics · Journal Group</span>
+						</a>
+						<div class="header-divider"></div>
+						<span class="header-tagline">探索人类认知的极限，并将其超越</span>
+						<div class="header-actions">
+							<a href="/join-editorial-board" class="btn-join">加入编委会</a>
+							{user ? (
+								<a href={`/${user.role}`} class="btn-login">{user.name}</a>
+							) : (
+								<a href="/login" class="btn-login">登录 / 投稿</a>
+							)}
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Main navigation -->
+			<nav class="main-nav">
+				<div class="container">
+					<div class="main-nav-inner">
+						<a href="/" class={`nav-link${pathname === "/" ? " active" : ""}`}>首页</a>
+						<a href="/journals" class={`nav-link${pathname.startsWith("/journals") ? " active" : ""}`}>期刊目录</a>
+						{subJournals.slice(0, 4).map((j) => (
+							<a
+								href={`/journals/${j.slug}`}
+								class={`nav-link${pathname === `/journals/${j.slug}` ? " active" : ""}`}
+							>
+								{j.name}
+							</a>
+						))}
+						<a href="/search" class={`nav-link${pathname === "/search" ? " active" : ""}`}>文献检索</a>
+					</div>
+				</div>
+			</nav>
+		</header>
+	)}
+
+	<main>
+		<slot />
+	</main>
+
+	{!noFooter && (
+		<footer class="site-footer">
+			<div class="container">
+				<div class="footer-main">
+					<div class="footer-brand">
+						<h3>玄学前沿期刊群</h3>
+						<p>
+							致力于发表最抽象、最深刻的研究成果。我们相信，每一个荒谬的问题背后，
+							都隐藏着深刻的学术价值——至少在评审通过之前是这样的。
+						</p>
+					</div>
+					<div class="footer-col">
+						<h4>期刊</h4>
+						<ul>
+							{journals.map((j) => (
+								<li><a href={`/journals/${j.slug}`}>{j.name}</a></li>
+							))}
+						</ul>
+					</div>
+					<div class="footer-col">
+						<h4>作者服务</h4>
+						<ul>
+							<li><a href="/register">注册账号</a></li>
+							<li><a href="/author/submit">投递稿件</a></li>
+							<li><a href="/author">稿件追踪</a></li>
+							<li><a href="/join-editorial-board">加入编委会</a></li>
+						</ul>
+					</div>
+					<div class="footer-col">
+						<h4>关于</h4>
+						<ul>
+							<li><a href="/about">关于我们</a></li>
+							<li><a href="/contact">联系我们</a></li>
+							<li><a href="/ethics">出版伦理</a></li>
+							<li><a href="/open-access">开放获取</a></li>
+						</ul>
+					</div>
+				</div>
+				<div class="footer-bottom">
+					<span>© {new Date().getFullYear()} 玄学前沿期刊群. All rights reserved.</span>
+					<span>Powered by Astro + Cloudflare Workers</span>
+				</div>
+			</div>
+		</footer>
+	)}
+</body>
+</html>

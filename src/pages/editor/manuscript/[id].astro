@@ -1,0 +1,307 @@
+---
+import DashboardLayout from "../../../layouts/DashboardLayout.astro";
+
+const user = Astro.locals.user!;
+const env = Astro.locals.runtime?.env;
+const id = parseInt(Astro.params.id!);
+const action = new URL(Astro.request.url).searchParams.get("action");
+
+let manuscript: any = null;
+let reviews: any[] = [];
+let decisions: any[] = [];
+let availableReviewers: any[] = [];
+
+try {
+	if (env?.DB) {
+		const mResult = await env.DB.prepare(`
+			SELECT m.*, j.name as journal_name, u.name as submitter_name
+			FROM manuscripts m
+			JOIN journals j ON m.journal_id = j.id
+			JOIN users u ON m.submitter_id = u.id
+			WHERE m.id = ?
+		`).bind(id).first();
+		manuscript = mResult;
+
+		if (manuscript) {
+			// Check editor has access
+			if (manuscript.journal_id !== user.journalId) {
+				return Astro.redirect("/editor");
+			}
+
+			const rResult = await env.DB.prepare(`
+				SELECT r.*, u.name as reviewer_name
+				FROM reviews r
+				JOIN users u ON r.reviewer_id = u.id
+				WHERE r.manuscript_id = ?
+			`).bind(id).all();
+			reviews = rResult.results as any[];
+
+			const dResult = await env.DB.prepare(`
+				SELECT * FROM editorial_decisions WHERE manuscript_id = ? ORDER BY created_at DESC
+			`).bind(id).all();
+			decisions = dResult.results as any[];
+
+			// Get reviewers for assignment
+			const reviewerResult = await env.DB.prepare(`
+				SELECT u.id, u.name, u.email, u.affiliation
+				FROM users u
+				WHERE u.role = 'reviewer' AND u.journal_id = ?
+			`).bind(user.journalId).all();
+			availableReviewers = reviewerResult.results as any[];
+		}
+	}
+} catch (e) {
+	// DB not available
+}
+
+if (!manuscript && env?.DB) {
+	return Astro.redirect("/editor");
+}
+
+// Fallback for demo
+if (!manuscript) {
+	manuscript = {
+		id,
+		title: "示例稿件：水的湿润性研究",
+		abstract: "本研究系统地研究了水的湿润特性...",
+		authors: "张伟, 李明",
+		keywords: "水, 湿润",
+		journal_name: "玄学前沿",
+		submitter_name: "张伟",
+		status: "submitted",
+		created_at: new Date().toISOString(),
+		r2_key: null,
+	};
+	availableReviewers = [
+		{ id: 1, name: "李审稿", affiliation: "审稿大学" },
+		{ id: 2, name: "王评审", affiliation: "评审研究所" },
+	];
+}
+
+const statusLabel: Record<string, string> = {
+	submitted: "新提交",
+	under_review: "审稿中",
+	revision_requested: "待修改",
+	resubmitted: "已修改，等待再审",
+	accepted: "已接受",
+	rejected: "已拒稿",
+	published: "已发表",
+};
+---
+
+<DashboardLayout title="稿件处理" activeNav="/editor">
+	<div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+		<a href="/editor" class="btn btn-sm btn-secondary">← 返回</a>
+		<h1 class="dashboard-page-title" style="margin-bottom: 0;">稿件处理</h1>
+	</div>
+
+	<!-- Manuscript Info -->
+	<div class="card" style="margin-bottom: 1.25rem;">
+		<div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+			<h2 style="font-size: 1rem;">稿件信息</h2>
+			<span class={`badge badge-${manuscript.status?.replace(/_/g, "-") || "submitted"}`}>
+				{statusLabel[manuscript.status] || manuscript.status}
+			</span>
+		</div>
+		<div class="card-body">
+			<h3 style="font-size: 1.1rem; margin-bottom: 0.75rem;">{manuscript.title}</h3>
+			<div class="grid-2" style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
+				<div>
+					<strong style="color: var(--text);">作者：</strong> {manuscript.authors}
+				</div>
+				<div>
+					<strong style="color: var(--text);">投稿人：</strong> {manuscript.submitter_name}
+				</div>
+				<div>
+					<strong style="color: var(--text);">期刊：</strong> {manuscript.journal_name}
+				</div>
+				<div>
+					<strong style="color: var(--text);">投稿时间：</strong>
+					{new Date(manuscript.created_at).toLocaleDateString("zh-CN")}
+				</div>
+			</div>
+			{manuscript.abstract && (
+				<div style="background: var(--bg-sidebar); padding: 1rem; border-radius: var(--radius-sm);">
+					<p class="text-sm text-muted" style="font-style: italic;">{manuscript.abstract}</p>
+				</div>
+			)}
+			{manuscript.r2_key && (
+				<div style="margin-top: 1rem;">
+					<a
+						href={`/api/download/${encodeURIComponent(manuscript.r2_key)}`}
+						class="btn btn-sm btn-primary"
+					>
+						下载稿件 PDF
+					</a>
+				</div>
+			)}
+		</div>
+	</div>
+
+	<!-- Current Reviews -->
+	{reviews.length > 0 && (
+		<div class="card" style="margin-bottom: 1.25rem;">
+			<div class="card-header">
+				<h3 style="font-size: 1rem;">审稿进度</h3>
+			</div>
+			<div class="card-body">
+				{reviews.map((review) => (
+					<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
+						<div>
+							<span class="text-sm font-bold">{review.reviewer_name}</span>
+							{review.recommendation && (
+								<span class="badge badge-under-review" style="margin-left: 0.75rem;">
+									{review.recommendation}
+								</span>
+							)}
+						</div>
+						<div style="display: flex; gap: 0.5rem; align-items: center;">
+							<span class={`badge ${review.status === "submitted" ? "badge-accepted" : "badge-under-review"}`}>
+								{review.status === "submitted" ? "已提交审稿" : review.status === "assigned" ? "已分配" : "审稿中"}
+							</span>
+							{review.review_r2_key && (
+								<a href={`/api/download/${encodeURIComponent(review.review_r2_key)}`} class="btn btn-sm btn-secondary">
+									下载审稿意见
+								</a>
+							)}
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	)}
+
+	<!-- Actions -->
+	{manuscript.status === "submitted" && (
+		<div class="grid-2" style="gap: 1rem;">
+			<!-- Assign Reviewer -->
+			<div class="card">
+				<div class="card-header">
+					<h3 style="font-size: 1rem;">分配审稿人</h3>
+				</div>
+				<div class="card-body">
+					<form action={`/api/manuscripts/${id}/assign`} method="post">
+						<div class="form-group">
+							<label class="form-label">选择审稿人</label>
+							<select name="reviewer_id" class="form-select" required>
+								<option value="">请选择审稿人...</option>
+								{availableReviewers.map((r) => (
+									<option value={r.id}>{r.name} - {r.affiliation || "未知机构"}</option>
+								))}
+							</select>
+						</div>
+						<div class="form-group">
+							<label class="form-label">截止日期</label>
+							<input
+								type="date"
+								name="due_date"
+								class="form-input"
+								min={new Date().toISOString().split("T")[0]}
+							/>
+						</div>
+						<button type="submit" class="btn btn-primary">确认分配</button>
+					</form>
+				</div>
+			</div>
+
+			<!-- Desk Reject -->
+			<div class="card" style="border-color: var(--accent);">
+				<div class="card-header" style="background: #ffebee;">
+					<h3 style="font-size: 1rem; color: var(--accent);">桌审拒稿</h3>
+				</div>
+				<div class="card-body">
+					<p class="text-sm text-muted" style="margin-bottom: 1rem;">
+						如果稿件明显不符合期刊要求，可以在不送审的情况下直接拒稿。
+					</p>
+					<form action={`/api/manuscripts/${id}/desk-reject`} method="post">
+						<div class="form-group">
+							<label class="form-label">拒稿理由</label>
+							<textarea
+								name="comments"
+								class="form-textarea"
+								rows="4"
+								required
+								placeholder="请说明拒稿理由..."
+							></textarea>
+						</div>
+						<button type="submit" class="btn btn-danger">确认拒稿</button>
+					</form>
+				</div>
+			</div>
+		</div>
+	)}
+
+	{(manuscript.status === "under_review" || manuscript.status === "resubmitted") && (
+		<div class="card">
+			<div class="card-header">
+				<h3 style="font-size: 1rem;">作出终审决定</h3>
+			</div>
+			<div class="card-body">
+				<form action={`/api/manuscripts/${id}/decide`} method="post">
+					<div class="form-group">
+						<label class="form-label">决定 <span>*</span></label>
+						<div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem;">
+							<label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+								<input type="radio" name="decision" value="accept" required />
+								<span class="badge badge-accepted">接受发表</span>
+							</label>
+							<label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+								<input type="radio" name="decision" value="revision" required />
+								<span class="badge badge-revision">修改后重审</span>
+							</label>
+							<label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+								<input type="radio" name="decision" value="reject" required />
+								<span class="badge badge-rejected">拒稿</span>
+							</label>
+						</div>
+					</div>
+					<div class="form-group">
+						<label class="form-label">编辑意见</label>
+						<textarea
+							name="comments"
+							class="form-textarea"
+							rows="5"
+							placeholder="给作者的具体意见和修改建议（接受/拒稿也建议填写）..."
+						></textarea>
+					</div>
+					<button type="submit" class="btn btn-primary">发送决定通知</button>
+				</form>
+			</div>
+		</div>
+	)}
+
+	{manuscript.status === "accepted" && (
+		<div class="card" style="border-color: var(--green);">
+			<div class="card-header" style="background: #e8f5e9;">
+				<h3 style="font-size: 1rem; color: var(--green);">发布稿件</h3>
+			</div>
+			<div class="card-body">
+				<p class="text-sm text-muted" style="margin-bottom: 1rem;">
+					稿件已接受，可以选择上传排版后的终稿，或直接将现有版本发布。
+				</p>
+				<form action={`/api/manuscripts/${id}/publish`} method="post" enctype="multipart/form-data">
+					<div class="form-group">
+						<label class="form-label">排版终稿 (可选)</label>
+						<input type="file" name="final_manuscript" accept=".pdf" class="form-input" />
+						<p class="form-help">若不上传，将使用作者最新提交的版本发布</p>
+					</div>
+					<div class="grid-2">
+						<div class="form-group">
+							<label class="form-label">卷号</label>
+							<input type="number" name="volume" class="form-input" placeholder="例如：1" min="1" />
+						</div>
+						<div class="form-group">
+							<label class="form-label">期号</label>
+							<input type="number" name="issue" class="form-input" placeholder="例如：1" min="1" />
+						</div>
+					</div>
+					<div class="form-group">
+						<label class="form-label">DOI (可选)</label>
+						<input type="text" name="doi" class="form-input" placeholder="例如：10.0000/FIM.2025.001" />
+					</div>
+					<button type="submit" class="btn btn-success">正式发布</button>
+				</form>
+			</div>
+		</div>
+	)}
+</DashboardLayout>

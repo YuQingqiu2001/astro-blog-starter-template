@@ -1,0 +1,131 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+
+const user = Astro.locals.user!;
+const env = Astro.locals.runtime?.env;
+
+let manuscripts: any[] = [];
+let stats = { submitted: 0, under_review: 0, revision: 0, accepted: 0, rejected: 0, published: 0 };
+
+try {
+	if (env?.DB) {
+		const result = await env.DB.prepare(`
+			SELECT m.*, j.name as journal_name
+			FROM manuscripts m
+			JOIN journals j ON m.journal_id = j.id
+			WHERE m.submitter_id = ?
+			ORDER BY m.updated_at DESC
+		`).bind(user.id).all();
+		manuscripts = result.results as any[];
+
+		for (const m of manuscripts) {
+			if (m.status === "submitted") stats.submitted++;
+			else if (m.status === "under_review") stats.under_review++;
+			else if (m.status === "revision_requested" || m.status === "resubmitted") stats.revision++;
+			else if (m.status === "accepted") stats.accepted++;
+			else if (m.status === "rejected") stats.rejected++;
+			else if (m.status === "published") stats.published++;
+		}
+	}
+} catch (e) {
+	// DB not available
+}
+
+const statusLabel: Record<string, string> = {
+	submitted: "已提交",
+	under_review: "审稿中",
+	revision_requested: "需修改",
+	resubmitted: "已修改提交",
+	accepted: "已接受",
+	rejected: "已拒稿",
+	published: "已发表",
+};
+
+const statusBadge: Record<string, string> = {
+	submitted: "badge-submitted",
+	under_review: "badge-under-review",
+	revision_requested: "badge-revision",
+	resubmitted: "badge-resubmitted",
+	accepted: "badge-accepted",
+	rejected: "badge-rejected",
+	published: "badge-published",
+};
+---
+
+<DashboardLayout title="我的稿件" activeNav="/author">
+	<h1 class="dashboard-page-title">📄 我的稿件</h1>
+
+	<!-- Stats -->
+	<div class="stats-row">
+		<div class="stat-card">
+			<div class="number">{stats.submitted}</div>
+			<div class="label">已提交</div>
+		</div>
+		<div class="stat-card">
+			<div class="number">{stats.under_review}</div>
+			<div class="label">审稿中</div>
+		</div>
+		<div class="stat-card">
+			<div class="number">{stats.revision}</div>
+			<div class="label">需修改</div>
+		</div>
+		<div class="stat-card">
+			<div class="number" style="color: var(--green);">{stats.accepted + stats.published}</div>
+			<div class="label">已接受/发表</div>
+		</div>
+	</div>
+
+	<!-- Action -->
+	<div style="margin-bottom: 1.5rem; display: flex; justify-content: flex-end;">
+		<a href="/author/submit" class="btn btn-primary">✏️ 投递新稿件</a>
+	</div>
+
+	<!-- Manuscripts table -->
+	{manuscripts.length === 0 ? (
+		<div class="alert alert-info">
+			您还没有投递过稿件。<a href="/author/submit">立即投递您的第一篇稿件</a>！
+		</div>
+	) : (
+		<table class="manuscript-table">
+			<thead>
+				<tr>
+					<th>稿件标题</th>
+					<th>期刊</th>
+					<th>投递日期</th>
+					<th>最新状态</th>
+					<th>操作</th>
+				</tr>
+			</thead>
+			<tbody>
+				{manuscripts.map((m) => (
+					<tr>
+						<td class="manuscript-title-cell">
+							<a href={`/author/manuscript/${m.id}`}>{m.title}</a>
+						</td>
+						<td class="text-muted text-sm">{m.journal_name}</td>
+						<td class="text-sm text-muted">
+							{new Date(m.created_at).toLocaleDateString("zh-CN")}
+						</td>
+						<td>
+							<span class={`badge ${statusBadge[m.status] || "badge-submitted"}`}>
+								{statusLabel[m.status] || m.status}
+							</span>
+						</td>
+						<td>
+							<div style="display: flex; gap: 0.5rem;">
+								<a href={`/author/manuscript/${m.id}`} class="btn btn-sm btn-secondary">
+									查看
+								</a>
+								{m.status === "revision_requested" && (
+									<a href={`/author/manuscript/${m.id}?action=revise`} class="btn btn-sm btn-warning">
+										提交修改
+									</a>
+								)}
+							</div>
+						</td>
+					</tr>
+				))}
+			</tbody>
+		</table>
+	)}
+</DashboardLayout>
