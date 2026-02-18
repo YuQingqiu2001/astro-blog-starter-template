@@ -5,26 +5,27 @@ import { journals } from "../data/journals";
 const error = new URL(Astro.request.url).searchParams.get("error");
 ---
 
-<BaseLayout title="注册 - 玄学前沿期刊群">
+<BaseLayout title="Register - Rubbish Publishing Group">
 	<div class="auth-page" style="align-items: flex-start; padding-top: 3rem;">
 		<div class="auth-card" style="max-width: 520px;">
-			<h1>注册账号</h1>
-			<p class="auth-subtitle">加入玄学前沿期刊投稿平台</p>
+			<h1>Create Account</h1>
+			<p class="auth-subtitle">Join the Rubbish Publishing Group submission platform</p>
 
 			{error && (
 				<div class="alert alert-error" id="error-msg">
-					{error === "email_taken" ? "该邮箱已被注册，请直接登录。" :
-					 error === "code_invalid" ? "验证码错误或已过期，请重新获取。" :
-					 error === "weak_password" ? "密码强度不足，请至少使用8位字符。" : error}
+					{error === "email_taken" ? "This email is already registered. Please login." :
+					 error === "code_invalid" ? "Verification code is invalid or expired. Please request a new one." :
+					 error === "weak_password" ? "Password too short. Please use at least 8 characters." :
+					 error === "missing_fields" ? "Please fill in all required fields." : error}
 				</div>
 			)}
 
 			<!-- Step 1: Email Verification -->
 			<div id="step1">
-				<h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-secondary);">步骤 1/2：验证邮箱</h3>
+				<h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-secondary);">Step 1 of 2: Verify Your Email</h3>
 
 				<div class="form-group">
-					<label class="form-label" for="verify-email">邮箱地址 <span>*</span></label>
+					<label class="form-label" for="verify-email">Email Address <span>*</span></label>
 					<div class="verification-group">
 						<input
 							type="email"
@@ -39,18 +40,18 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 							id="send-code-btn"
 							onclick="sendVerificationCode()"
 						>
-							获取验证码
+							Send Code
 						</button>
 					</div>
 				</div>
 
 				<div class="form-group">
-					<label class="form-label" for="verify-code">验证码 <span>*</span></label>
+					<label class="form-label" for="verify-code">Verification Code <span>*</span></label>
 					<input
 						type="text"
 						id="verify-code"
 						class="form-input"
-						placeholder="6位验证码"
+						placeholder="6-digit code"
 						maxlength="6"
 						inputmode="numeric"
 					/>
@@ -58,70 +59,70 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 				</div>
 
 				<button type="button" class="btn btn-primary btn-full" onclick="verifyAndNext()">
-					下一步
+					Next Step
 				</button>
 			</div>
 
 			<!-- Step 2: Account Info -->
 			<div id="step2" style="display: none;">
-				<h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-secondary);">步骤 2/2：填写账号信息</h3>
+				<h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-secondary);">Step 2 of 2: Account Details</h3>
 
 				<form action="/api/auth/register" method="post" id="register-form">
 					<input type="hidden" name="email" id="form-email" />
 					<input type="hidden" name="code" id="form-code" />
 
 					<div class="form-group">
-						<label class="form-label">账号类型 <span>*</span></label>
+						<label class="form-label">Account Type <span>*</span></label>
 						<div class="role-tabs" style="margin-bottom: 0;">
 							<button class="role-tab active" type="button" onclick="setRole('author')" id="role-author">
-								✏️ 作者
+								✏️ Author
 							</button>
 							<button class="role-tab" type="button" onclick="setRole('editor')" id="role-editor">
-								📋 编辑
+								📋 Editor
 							</button>
 							<button class="role-tab" type="button" onclick="setRole('reviewer')" id="role-reviewer">
-								🔍 审稿人
+								🔍 Reviewer
 							</button>
 						</div>
 						<input type="hidden" name="role" id="role-input" value="author" />
-						<p class="form-help" style="margin-top: 0.5rem;">编辑和审稿人账号需关联期刊，并由现有编辑审核。</p>
+						<p class="form-help" style="margin-top: 0.5rem;">Editor and reviewer accounts require journal affiliation and approval from existing editors.</p>
 					</div>
 
 					<div id="journal-select-group" style="display: none;" class="form-group">
-						<label class="form-label" for="journal-id">关联期刊 <span>*</span></label>
+						<label class="form-label" for="journal-id">Associated Journal <span>*</span></label>
 						<select name="journal_id" id="journal-id" class="form-select">
-							<option value="">请选择期刊...</option>
+							<option value="">Select a journal...</option>
 							{journals.map((j) => (
-								<option value={j.id}>{j.name} ({j.nameEn})</option>
+								<option value={j.id}>{j.name}</option>
 							))}
 						</select>
 					</div>
 
 					<div class="form-group">
-						<label class="form-label" for="name">姓名 <span>*</span></label>
+						<label class="form-label" for="name">Full Name <span>*</span></label>
 						<input
 							type="text"
 							id="name"
 							name="name"
 							class="form-input"
 							required
-							placeholder="真实姓名"
+							placeholder="Your full name"
 						/>
 					</div>
 
 					<div class="form-group">
-						<label class="form-label" for="affiliation">所属机构</label>
+						<label class="form-label" for="affiliation">Institution / Affiliation</label>
 						<input
 							type="text"
 							id="affiliation"
 							name="affiliation"
 							class="form-input"
-							placeholder="大学/研究所/公司"
+							placeholder="University / Research Institute / Company"
 						/>
 					</div>
 
 					<div class="form-group">
-						<label class="form-label" for="password">密码 <span>*</span></label>
+						<label class="form-label" for="password">Password <span>*</span></label>
 						<input
 							type="password"
 							id="password"
@@ -129,32 +130,36 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 							class="form-input"
 							required
 							minlength="8"
-							placeholder="至少8位字符"
+							placeholder="At least 8 characters"
 							autocomplete="new-password"
+							oninput="checkPasswordStrength(this.value)"
 						/>
+						<div id="password-strength" style="margin-top: 0.25rem; font-size: 0.8rem;"></div>
 					</div>
 
 					<div class="form-group">
-						<label class="form-label" for="password2">确认密码 <span>*</span></label>
+						<label class="form-label" for="password2">Confirm Password <span>*</span></label>
 						<input
 							type="password"
 							id="password2"
 							name="password2"
 							class="form-input"
 							required
-							placeholder="再次输入密码"
+							placeholder="Re-enter your password"
 							autocomplete="new-password"
+							oninput="checkPasswordMatch()"
 						/>
+						<div id="password-match" style="margin-top: 0.25rem; font-size: 0.8rem;"></div>
 					</div>
 
-					<button type="submit" class="btn btn-primary btn-full btn-lg">
-						注册账号
+					<button type="submit" class="btn btn-primary btn-full btn-lg" id="submit-btn">
+						Create Account
 					</button>
 				</form>
 			</div>
 
-			<div class="auth-divider"><span>已有账号？</span></div>
-			<a href="/login" class="btn btn-secondary btn-full">返回登录</a>
+			<div class="auth-divider"><span>Already have an account?</span></div>
+			<a href="/login" class="btn btn-secondary btn-full">Back to Login</a>
 		</div>
 	</div>
 </BaseLayout>
@@ -169,13 +174,13 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 		const status = document.getElementById("code-status")!;
 
 		if (!email || !email.includes("@")) {
-			status.textContent = "请输入有效的邮箱地址";
+			status.textContent = "Please enter a valid email address";
 			status.style.color = "var(--accent)";
 			return;
 		}
 
 		btn.disabled = true;
-		btn.textContent = "发送中...";
+		btn.textContent = "Sending...";
 		status.textContent = "";
 
 		try {
@@ -187,30 +192,30 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 			const data = await resp.json() as { success?: boolean; error?: string };
 
 			if (data.success) {
-				status.textContent = "验证码已发送至您的邮箱，请查收（有效期10分钟）";
+				status.textContent = "Verification code sent to your inbox. Please check your spam folder if not received. (Valid for 10 minutes)";
 				status.style.color = "var(--green)";
 				// Countdown
 				let countdown = 60;
 				const interval = setInterval(() => {
-					btn.textContent = `${countdown}s 后重试`;
+					btn.textContent = `Resend in ${countdown}s`;
 					countdown--;
 					if (countdown < 0) {
 						clearInterval(interval);
 						btn.disabled = false;
-						btn.textContent = "重新获取";
+						btn.textContent = "Resend Code";
 					}
 				}, 1000);
 			} else {
-				status.textContent = data.error || "发送失败，请稍后重试";
+				status.textContent = data.error || "Failed to send code. Please try again.";
 				status.style.color = "var(--accent)";
 				btn.disabled = false;
-				btn.textContent = "获取验证码";
+				btn.textContent = "Send Code";
 			}
 		} catch {
-			status.textContent = "网络错误，请稍后重试";
+			status.textContent = "Network error. Please try again.";
 			status.style.color = "var(--accent)";
 			btn.disabled = false;
-			btn.textContent = "获取验证码";
+			btn.textContent = "Send Code";
 		}
 	}
 
@@ -220,10 +225,19 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 		const status = document.getElementById("code-status")!;
 
 		if (!email || !code) {
-			status.textContent = "请填写邮箱和验证码";
+			status.textContent = "Please enter your email and verification code";
 			status.style.color = "var(--accent)";
 			return;
 		}
+
+		if (code.length !== 6 || !/^\d+$/.test(code)) {
+			status.textContent = "Please enter the 6-digit code from your email";
+			status.style.color = "var(--accent)";
+			return;
+		}
+
+		status.textContent = "Verifying...";
+		status.style.color = "var(--text-secondary)";
 
 		try {
 			const resp = await fetch("/api/auth/verify-code", {
@@ -239,12 +253,14 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 				(document.getElementById("form-code") as HTMLInputElement).value = code;
 				(document.getElementById("step1") as HTMLElement).style.display = "none";
 				(document.getElementById("step2") as HTMLElement).style.display = "block";
+				// Pre-fill email display
+				status.textContent = "";
 			} else {
-				status.textContent = "验证码错误或已过期，请重新获取";
+				status.textContent = "Invalid or expired code. Please request a new one.";
 				status.style.color = "var(--accent)";
 			}
 		} catch {
-			status.textContent = "验证失败，请重试";
+			status.textContent = "Verification failed. Please try again.";
 			status.style.color = "var(--accent)";
 		}
 	}
@@ -256,4 +272,45 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 		const jGroup = document.getElementById("journal-select-group")!;
 		jGroup.style.display = role !== "author" ? "block" : "none";
 	}
+
+	function checkPasswordStrength(password: string) {
+		const el = document.getElementById("password-strength")!;
+		if (!password) { el.textContent = ""; return; }
+		if (password.length < 8) {
+			el.textContent = "Too short (min 8 characters)";
+			el.style.color = "var(--accent)";
+		} else if (password.length < 12) {
+			el.textContent = "Acceptable";
+			el.style.color = "#E65100";
+		} else {
+			el.textContent = "Strong";
+			el.style.color = "var(--green)";
+		}
+		checkPasswordMatch();
+	}
+
+	function checkPasswordMatch() {
+		const p1 = (document.getElementById("password") as HTMLInputElement).value;
+		const p2 = (document.getElementById("password2") as HTMLInputElement).value;
+		const el = document.getElementById("password-match")!;
+		if (!p2) { el.textContent = ""; return; }
+		if (p1 === p2) {
+			el.textContent = "Passwords match";
+			el.style.color = "var(--green)";
+		} else {
+			el.textContent = "Passwords do not match";
+			el.style.color = "var(--accent)";
+		}
+	}
+
+	// Prevent form submission if passwords don't match
+	document.getElementById("register-form")?.addEventListener("submit", (e) => {
+		const p1 = (document.getElementById("password") as HTMLInputElement).value;
+		const p2 = (document.getElementById("password2") as HTMLInputElement).value;
+		if (p1 !== p2) {
+			e.preventDefault();
+			document.getElementById("password-match")!.textContent = "Passwords do not match";
+			document.getElementById("password-match")!.style.color = "var(--accent)";
+		}
+	});
 </script>

@@ -21,7 +21,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 		],
 		from: {
 			email: options.from,
-			name: options.fromName || "玄学前沿期刊系统",
+			name: options.fromName || "Rubbish Publishing Group",
 		},
 		subject: options.subject,
 		content: [
@@ -49,22 +49,24 @@ export function verificationEmailHtml(code: string, siteName: string): string {
 	return `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>邮箱验证</title></head>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background:#1A2A4A; padding:20px; text-align:center; border-radius:8px 8px 0 0;">
-    <h1 style="color:#fff; margin:0; font-size:24px;">${siteName}</h1>
+<head><meta charset="utf-8"><title>Email Verification</title></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f4f4f4;">
+  <div style="background:#1A2A4A; padding:24px; text-align:center; border-radius:8px 8px 0 0; display:flex; align-items:center; justify-content:center; gap:12px;">
+    <h1 style="color:#fff; margin:0; font-size:22px; font-weight:700;">${siteName}</h1>
   </div>
-  <div style="background:#f9f9f9; padding:30px; border:1px solid #ddd;">
-    <h2 style="color:#1A2A4A;">邮箱验证码</h2>
-    <p>感谢您注册 ${siteName}。请使用以下验证码完成注册：</p>
-    <div style="background:#1A2A4A; color:#fff; font-size:32px; font-weight:bold; text-align:center; padding:20px; border-radius:8px; letter-spacing:8px; margin:20px 0;">
+  <div style="background:#ffffff; padding:36px; border:1px solid #ddd; border-top:none;">
+    <h2 style="color:#1A2A4A; margin-top:0;">Email Verification Code</h2>
+    <p style="color:#444; line-height:1.6;">Thank you for registering with <strong>${siteName}</strong>. Please use the verification code below to complete your registration:</p>
+    <div style="background:#1A2A4A; color:#fff; font-size:36px; font-weight:bold; text-align:center; padding:24px; border-radius:8px; letter-spacing:12px; margin:28px 0;">
       ${code}
     </div>
-    <p style="color:#666;">验证码有效期为 <strong>10分钟</strong>，请尽快完成验证。</p>
-    <p style="color:#666;">如果您没有发起此注册请求，请忽略此邮件。</p>
+    <p style="color:#666; font-size:0.9rem;">This code is valid for <strong>10 minutes</strong>. Please complete your registration promptly.</p>
+    <p style="color:#666; font-size:0.9rem;">If you did not initiate this registration, you can safely ignore this email.</p>
+    <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
+    <p style="color:#999; font-size:0.8rem;">This is an automated message from ${siteName}. Please do not reply to this email.</p>
   </div>
-  <div style="background:#eee; padding:15px; text-align:center; font-size:12px; color:#999; border-radius:0 0 8px 8px;">
-    © ${new Date().getFullYear()} ${siteName} · 学术出版系统
+  <div style="background:#eee; padding:16px; text-align:center; font-size:12px; color:#999; border-radius:0 0 8px 8px;">
+    © ${new Date().getFullYear()} ${siteName} · Academic Publishing System
   </div>
 </body>
 </html>`;
@@ -78,43 +80,45 @@ export function decisionEmailHtml(
 	siteUrl: string
 ): string {
 	const decisionMap: Record<string, { label: string; color: string }> = {
-		accept: { label: "接受发表", color: "#2E7D32" },
-		revision: { label: "修改后重审", color: "#E65100" },
-		reject: { label: "拒稿", color: "#C62828" },
+		accept: { label: "Accepted for Publication", color: "#2E7D32" },
+		revision: { label: "Revision Required", color: "#E65100" },
+		reject: { label: "Manuscript Rejected", color: "#C62828" },
 	};
 	const d = decisionMap[decision] || { label: decision, color: "#666" };
 
 	return `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>稿件处理结果通知</title></head>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background:#1A2A4A; padding:20px; text-align:center; border-radius:8px 8px 0 0;">
-    <h1 style="color:#fff; margin:0; font-size:24px;">${siteName}</h1>
+<head><meta charset="utf-8"><title>Manuscript Decision Notification</title></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f4f4f4;">
+  <div style="background:#1A2A4A; padding:24px; text-align:center; border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff; margin:0; font-size:22px;">${siteName}</h1>
   </div>
-  <div style="background:#f9f9f9; padding:30px; border:1px solid #ddd;">
-    <h2 style="color:#1A2A4A;">稿件处理结果通知</h2>
-    <p>您投递的稿件 <strong>《${manuscriptTitle}》</strong> 已完成编辑审核，结果如下：</p>
-    <div style="background:${d.color}; color:#fff; font-size:20px; font-weight:bold; text-align:center; padding:15px; border-radius:8px; margin:20px 0;">
+  <div style="background:#ffffff; padding:36px; border:1px solid #ddd; border-top:none;">
+    <h2 style="color:#1A2A4A; margin-top:0;">Manuscript Decision Notification</h2>
+    <p style="color:#444;">Your manuscript <strong>"${manuscriptTitle}"</strong> has been reviewed by our editorial team. The decision is as follows:</p>
+    <div style="background:${d.color}; color:#fff; font-size:20px; font-weight:bold; text-align:center; padding:18px; border-radius:8px; margin:24px 0;">
       ${d.label}
     </div>
     ${
 		comments
-			? `<div style="background:#fff; padding:20px; border-left:4px solid ${d.color}; margin:15px 0;">
-      <h3 style="margin-top:0; color:#333;">编辑意见：</h3>
-      <p style="color:#555;">${comments}</p>
+			? `<div style="background:#f9f9f9; padding:20px; border-left:4px solid ${d.color}; margin:20px 0; border-radius:0 4px 4px 0;">
+      <h3 style="margin-top:0; color:#333; font-size:1rem;">Editorial Comments:</h3>
+      <p style="color:#555; line-height:1.6; margin:0;">${comments}</p>
     </div>`
 			: ""
 	}
     ${
 		decision === "revision"
-			? `<p>请登录系统查看详细审稿意见，并在规定时间内提交修改稿：</p>
-      <a href="${siteUrl}/author" style="background:#1565C0; color:#fff; padding:12px 24px; text-decoration:none; border-radius:6px; display:inline-block; margin:10px 0;">前往作者平台</a>`
+			? `<p style="color:#444;">Please login to view the full reviewer comments and submit your revised manuscript within the specified deadline:</p>
+      <div style="text-align:center; margin:20px 0;">
+        <a href="${siteUrl}/author" style="background:#1565C0; color:#fff; padding:14px 28px; text-decoration:none; border-radius:6px; display:inline-block; font-weight:600;">Go to Author Dashboard</a>
+      </div>`
 			: ""
 	}
   </div>
-  <div style="background:#eee; padding:15px; text-align:center; font-size:12px; color:#999; border-radius:0 0 8px 8px;">
-    © ${new Date().getFullYear()} ${siteName} · 学术出版系统
+  <div style="background:#eee; padding:16px; text-align:center; font-size:12px; color:#999; border-radius:0 0 8px 8px;">
+    © ${new Date().getFullYear()} ${siteName} · Academic Publishing System
   </div>
 </body>
 </html>`;
