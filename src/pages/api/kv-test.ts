@@ -1,11 +1,9 @@
 import type { APIRoute } from "astro";
-import { getKv } from "../../lib/runtime-env";
 
 export const GET: APIRoute = async ({ locals }) => {
-	const env = locals.runtime?.env as Record<string, any> | undefined;
-	const kv = getKv(env);
+	const kv = locals.runtime?.env?.rubbish;
 	if (!kv) {
-		return new Response("KV binding not configured (SESSIONS_KV/rubbish)", { status: 503 });
+		return new Response("KV binding 'rubbish' is not configured", { status: 503 });
 	}
 
 	await kv.put("hello", "world");
