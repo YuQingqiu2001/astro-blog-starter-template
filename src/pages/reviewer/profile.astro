@@ -1,0 +1,15 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+const user = Astro.locals.user!;
+---
+
+<DashboardLayout title="Profile" activeNav="/reviewer/profile">
+	<h1 class="dashboard-page-title">👤 Profile</h1>
+	<div class="card">
+		<div class="card-body">
+			<p><strong>Name:</strong> {user.name}</p>
+			<p><strong>Email:</strong> {user.email}</p>
+			<p><strong>Role:</strong> Reviewer</p>
+		</div>
+	</div>
+</DashboardLayout>

@@ -1,0 +1,47 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+
+const env = Astro.locals.runtime?.env;
+const user = Astro.locals.user!;
+let reviewers: any[] = [];
+
+if (env?.DB) {
+	try {
+		const result = await env.DB.prepare(`
+			SELECT id, name, email, affiliation
+			FROM users
+			WHERE role = 'reviewer' AND journal_id = ? AND verified = 1
+			ORDER BY name ASC
+		`).bind(user.journalId).all();
+		reviewers = result.results as any[];
+	} catch {
+		reviewers = [];
+	}
+}
+---
+
+<DashboardLayout title="Reviewer Management" activeNav="/editor/reviewers">
+	<h1 class="dashboard-page-title">🔍 Reviewer Management</h1>
+	{reviewers.length === 0 ? (
+		<div class="alert alert-info">No reviewers are currently associated with your journal.</div>
+	) : (
+		<table class="manuscript-table">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Email</th>
+					<th>Affiliation</th>
+				</tr>
+			</thead>
+			<tbody>
+				{reviewers.map((r) => (
+					<tr>
+						<td>{r.name}</td>
+						<td class="text-sm text-muted">{r.email}</td>
+						<td class="text-sm text-muted">{r.affiliation || "—"}</td>
+					</tr>
+				))}
+			</tbody>
+		</table>
+	)}
+</DashboardLayout>

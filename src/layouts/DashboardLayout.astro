@@ -6,7 +6,7 @@ interface Props {
 	activeNav?: string;
 }
 
-const { title = "工作台", activeNav = "" } = Astro.props;
+const { title = "Dashboard", activeNav = "" } = Astro.props;
 const user = Astro.locals.user;
 
 if (!user) {
@@ -14,28 +14,28 @@ if (!user) {
 }
 
 const roleLabels: Record<string, string> = {
-	author: "作者",
-	editor: "编辑",
-	reviewer: "审稿人",
+	author: "Author",
+	editor: "Editor",
+	reviewer: "Reviewer",
 };
 
 const authorNav = [
-	{ href: "/author", label: "我的稿件", icon: "📄" },
-	{ href: "/author/submit", label: "投递新稿件", icon: "✏️" },
-	{ href: "/author/profile", label: "个人资料", icon: "👤" },
+	{ href: "/author", label: "My Manuscripts", icon: "📄" },
+	{ href: "/author/submit", label: "Submit Manuscript", icon: "✏️" },
+	{ href: "/author/profile", label: "Profile", icon: "👤" },
 ];
 
 const editorNav = [
-	{ href: "/editor", label: "稿件总览", icon: "📋" },
-	{ href: "/editor/board", label: "编委管理", icon: "👥" },
-	{ href: "/editor/reviewers", label: "审稿人管理", icon: "🔍" },
-	{ href: "/editor/profile", label: "个人资料", icon: "👤" },
+	{ href: "/editor", label: "Editorial Dashboard", icon: "📋" },
+	{ href: "/editor/board", label: "Editorial Board", icon: "👥" },
+	{ href: "/editor/reviewers", label: "Reviewers", icon: "🔍" },
+	{ href: "/editor/profile", label: "Profile", icon: "👤" },
 ];
 
 const reviewerNav = [
-	{ href: "/reviewer", label: "待审稿件", icon: "📝" },
-	{ href: "/reviewer/history", label: "审稿历史", icon: "📚" },
-	{ href: "/reviewer/profile", label: "个人资料", icon: "👤" },
+	{ href: "/reviewer", label: "Assigned Reviews", icon: "📝" },
+	{ href: "/reviewer/history", label: "Review History", icon: "📚" },
+	{ href: "/reviewer/profile", label: "Profile", icon: "👤" },
 ];
 
 const navItems =
@@ -46,7 +46,7 @@ const navItems =
 			: reviewerNav;
 ---
 
-<BaseLayout title={`${title} - 玄学前沿期刊群`}>
+<BaseLayout title={`${title} - Rubbish Publishing Group`}>
 	<div class="dashboard-layout">
 		<aside class="dashboard-sidebar">
 			<div class="sidebar-user">
@@ -67,12 +67,12 @@ const navItems =
 					</a>
 				))}
 
-				<div class="sidebar-nav-section">账户</div>
+				<div class="sidebar-nav-section">Account</div>
 				<a href="/" class="sidebar-nav-item">
-					<span>🏠</span>返回首页
+					<span>🏠</span>Home
 				</a>
 				<a href="/api/auth/logout" class="sidebar-nav-item">
-					<span>🚪</span>退出登录
+					<span>🚪</span>Sign Out
 				</a>
 			</nav>
 		</aside>

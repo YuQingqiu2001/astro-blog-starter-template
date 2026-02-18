@@ -1,0 +1,51 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+
+const env = Astro.locals.runtime?.env;
+const user = Astro.locals.user!;
+
+let boardMembers: any[] = [];
+
+if (env?.DB) {
+	try {
+		const result = await env.DB.prepare(`
+			SELECT eb.position, eb.is_editor_in_chief, u.name, u.email, u.affiliation
+			FROM editorial_board eb
+			JOIN users u ON u.id = eb.user_id
+			WHERE eb.journal_id = ?
+			ORDER BY eb.is_editor_in_chief DESC, eb.display_order ASC, u.name ASC
+		`).bind(user.journalId).all();
+		boardMembers = result.results as any[];
+	} catch {
+		boardMembers = [];
+	}
+}
+---
+
+<DashboardLayout title="Editorial Board" activeNav="/editor/board">
+	<h1 class="dashboard-page-title">👥 Editorial Board Management</h1>
+	{boardMembers.length === 0 ? (
+		<div class="alert alert-info">No editorial board records found for your journal yet.</div>
+	) : (
+		<table class="manuscript-table">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Position</th>
+					<th>Email</th>
+					<th>Affiliation</th>
+				</tr>
+			</thead>
+			<tbody>
+				{boardMembers.map((m) => (
+					<tr>
+						<td>{m.name}</td>
+						<td>{m.is_editor_in_chief ? "Editor-in-Chief" : m.position || "Board Member"}</td>
+						<td class="text-sm text-muted">{m.email}</td>
+						<td class="text-sm text-muted">{m.affiliation || "—"}</td>
+					</tr>
+				))}
+			</tbody>
+		</table>
+	)}
+</DashboardLayout>

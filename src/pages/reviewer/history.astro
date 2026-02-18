@@ -1,0 +1,48 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+
+const env = Astro.locals.runtime?.env;
+const user = Astro.locals.user!;
+let history: any[] = [];
+
+if (env?.DB) {
+	try {
+		const result = await env.DB.prepare(`
+			SELECT r.*, m.title
+			FROM reviews r
+			JOIN manuscripts m ON m.id = r.manuscript_id
+			WHERE r.reviewer_id = ? AND (r.status = 'submitted' OR r.status = 'declined')
+			ORDER BY r.created_at DESC
+		`).bind(user.id).all();
+		history = result.results as any[];
+	} catch {
+		history = [];
+	}
+}
+---
+
+<DashboardLayout title="Review History" activeNav="/reviewer/history">
+	<h1 class="dashboard-page-title">📚 Review History</h1>
+	{history.length === 0 ? (
+		<div class="alert alert-info">No completed review records yet.</div>
+	) : (
+		<table class="manuscript-table">
+			<thead>
+				<tr>
+					<th>Manuscript</th>
+					<th>Status</th>
+					<th>Date</th>
+				</tr>
+			</thead>
+			<tbody>
+				{history.map((h) => (
+					<tr>
+						<td>{h.title}</td>
+						<td>{h.status}</td>
+						<td class="text-sm text-muted">{new Date(h.created_at).toLocaleDateString()}</td>
+					</tr>
+				))}
+			</tbody>
+		</table>
+	)}
+</DashboardLayout>
