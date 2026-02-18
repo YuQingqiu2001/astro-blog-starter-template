@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { hashPassword, createSession, setSessionCookie } from "../../../lib/auth";
 import { createLocalUser, findLocalUserByEmail } from "../../../lib/local-auth";
+import { getDb, getKv } from "../../../lib/runtime-env";
 
 const allowedRoles = ["author", "editor", "reviewer"] as const;
 
@@ -41,23 +42,21 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 		return redirect("/register?error=invalid_role");
 	}
 
-	if ((role === "editor" || role === "reviewer") && (!journalId || Number.isNaN(journalId))) {
-		return redirect("/register?error=missing_journal");
-	}
-
 	const env = locals.runtime?.env;
+	const db = getDb(env as any);
+	const kv = getKv(env as any);
 
 	try {
 		const passwordHash = await hashPassword(password);
 		let userId: number;
 
-		if (env?.DB) {
-			const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
+		if (db) {
+			const existing = await db.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
 			if (existing) {
 				return redirect("/register?error=email_taken");
 			}
 
-			const result = await env.DB.prepare(`
+			const result = await db.prepare(`
 				INSERT INTO users (email, password_hash, name, role, journal_id, verified, affiliation)
 				VALUES (?, ?, ?, ?, ?, 1, ?)
 			`).bind(email, passwordHash, name, role, journalId, affiliation || null).run();
@@ -77,7 +76,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 			}).id;
 		}
 
-		const token = await createSession({ kv: env?.SESSIONS_KV, db: env?.DB }, {
+		const token = await createSession({ kv, db }, {
 			userId,
 			email,
 			name,

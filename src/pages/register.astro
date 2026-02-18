@@ -41,7 +41,7 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 						</button>
 					</div>
 					<input type="hidden" name="role" id="role-input" value="author" />
-					<p class="form-help" style="margin-top: 0.5rem;">Editor and reviewer accounts require journal affiliation and approval from existing editors.</p>
+					<p class="form-help" style="margin-top: 0.5rem;">You can freely switch role here. Journal selection is optional and used for faster routing.</p>
 				</div>
 
 				<div id="journal-select-group" style="display: none;" class="form-group">
@@ -133,8 +133,7 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 		const journalSelect = document.getElementById("journal-id");
 		const requireJournal = role !== "author";
 		jGroup.style.display = requireJournal ? "block" : "none";
-		journalSelect.required = requireJournal;
-		if (!requireJournal) journalSelect.value = "";
+		journalSelect.required = false;
 	}
 
 	function regenCaptcha() {

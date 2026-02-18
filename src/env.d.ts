@@ -1,8 +1,11 @@
 interface Env {
 	ASSETS: Fetcher;
-	DB: D1Database;
-	MANUSCRIPTS_BUCKET: R2Bucket;
+	DB?: D1Database;
+	rpg?: D1Database;
+	MANUSCRIPTS_BUCKET?: R2Bucket;
+	MY_BUCKET?: R2Bucket;
 	SESSIONS_KV?: KVNamespace;
+	rubbish?: KVNamespace;
 	EMAIL_FROM: string;
 	SITE_NAME: string;
 	SITE_URL: string;

@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { uploadFile, generateR2Key } from "../../../lib/r2";
+import { getDb, getManuscriptsBucket } from "../../../lib/runtime-env";
 
 export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	const user = locals.user;
@@ -8,7 +9,9 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	}
 
 	const env = locals.runtime?.env;
-	if (!env?.DB || !env?.MANUSCRIPTS_BUCKET) {
+	const db = getDb(env as any);
+	const bucket = getManuscriptsBucket(env as any);
+	if (!db || !bucket) {
 		return redirect("/author/submit?error=服务暂时不可用");
 	}
 
@@ -45,15 +48,15 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	}
 
 	try {
-		const journal = await env.DB.prepare("SELECT id FROM journals WHERE id = ?").bind(journalId).first();
+		const journal = await db.prepare("SELECT id FROM journals WHERE id = ?").bind(journalId).first();
 		if (!journal) {
 			return redirect("/author/submit?error=invalid_journal");
 		}
 
 		const r2Key = await generateR2Key(`manuscripts/${user.id}`, manuscriptFile.name);
-		await uploadFile(env.MANUSCRIPTS_BUCKET, r2Key, manuscriptFile, "application/pdf");
+		await uploadFile(bucket, r2Key, manuscriptFile, "application/pdf");
 
-		await env.DB.prepare(`
+		await db.prepare(`
 			INSERT INTO manuscripts (title, abstract, authors, keywords, journal_id, submitter_id, status, r2_key)
 			VALUES (?, ?, ?, ?, ?, ?, 'submitted', ?)
 		`).bind(title, abstract, authors, keywords, journalId, user.id, r2Key).run();

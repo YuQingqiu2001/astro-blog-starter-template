@@ -1,11 +1,14 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getSession, getSessionToken } from "../lib/auth";
+import { getDb, getKv } from "../lib/runtime-env";
 
 const token = getSessionToken(Astro.request);
 const env = Astro.locals.runtime?.env;
+const db = getDb(env as any);
+const kv = getKv(env as any);
 if (token) {
-	const session = await getSession({ kv: env?.SESSIONS_KV, db: env?.DB }, token);
+	const session = await getSession({ kv, db }, token);
 	if (session) {
 		return Astro.redirect(`/${session.role}`);
 	}

@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import { verifyPassword, createSession, setSessionCookie } from "../../../lib/auth";
 import { findLocalUserByEmail } from "../../../lib/local-auth";
+import { getDb, getKv } from "../../../lib/runtime-env";
 
 function normalizeRedirectPath(input: string): string {
 	if (!input || !input.startsWith("/") || input.startsWith("//")) {
@@ -37,6 +38,8 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	}
 
 	const env = locals.runtime?.env;
+	const db = getDb(env as any);
+	const kv = getKv(env as any);
 
 	try {
 		let user: {
@@ -48,8 +51,8 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 			journal_id: number | null;
 		} | null = null;
 
-		if (env?.DB) {
-			user = await env.DB.prepare(
+		if (db) {
+			user = await db.prepare(
 				"SELECT id, email, password_hash, name, role, journal_id FROM users WHERE email = ? AND verified = 1"
 			).bind(email).first() as typeof user;
 		} else {
@@ -76,7 +79,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 			return redirect("/login?error=invalid");
 		}
 
-		const token = await createSession({ kv: env?.SESSIONS_KV, db: env?.DB }, {
+		const token = await createSession({ kv, db }, {
 			userId: user.id,
 			email: user.email,
 			name: user.name,

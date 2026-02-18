@@ -1,13 +1,16 @@
 import { defineMiddleware } from "astro:middleware";
 import { getSession, getSessionToken } from "./lib/auth";
+import { getDb, getKv } from "./lib/runtime-env";
 
 export const onRequest = defineMiddleware(async (context, next) => {
 	const token = getSessionToken(context.request);
 
 	const env = context.locals.runtime?.env;
+	const db = getDb(env as any);
+	const kv = getKv(env as any);
 	if (token) {
 		try {
-			const session = await getSession({ kv: env?.SESSIONS_KV, db: env?.DB }, token);
+			const session = await getSession({ kv, db }, token);
 			if (session) {
 				context.locals.user = {
 					id: session.userId,
