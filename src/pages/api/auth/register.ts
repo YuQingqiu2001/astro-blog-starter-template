@@ -1,11 +1,5 @@
 import type { APIRoute } from "astro";
-import {
-	hashPassword,
-	createSession,
-	setSessionCookie,
-	isEmailVerified,
-	clearVerifiedEmail,
-} from "../../../lib/auth";
+import { hashPassword, createSession, setSessionCookie } from "../../../lib/auth";
 
 const allowedRoles = ["author", "editor", "reviewer"] as const;
 
@@ -19,10 +13,15 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	const affiliation = (formData.get("affiliation") as string || "").trim();
 	const journalIdStr = formData.get("journal_id") as string || "";
 	const journalId = journalIdStr ? Number.parseInt(journalIdStr, 10) : null;
-	const code = (formData.get("code") as string || "").trim();
+	const captchaExpected = (formData.get("captcha_expected") as string || "").trim();
+	const captchaAnswer = (formData.get("captcha_answer") as string || "").trim();
 
-	if (!email || !name || !password || !code) {
+	if (!email || !name || !password || !captchaExpected || !captchaAnswer) {
 		return redirect("/register?error=missing_fields");
+	}
+
+	if (captchaExpected !== captchaAnswer) {
+		return redirect("/register?error=captcha_failed");
 	}
 
 	if (email.length > 254 || name.length > 120 || affiliation.length > 255) {
@@ -56,11 +55,6 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 			return redirect("/register?error=email_taken");
 		}
 
-		const verified = await isEmailVerified({ kv: env.SESSIONS_KV, db: env.DB }, email);
-		if (!verified) {
-			return redirect("/register?error=code_invalid");
-		}
-
 		const passwordHash = await hashPassword(password);
 		const result = await env.DB.prepare(`
 			INSERT INTO users (email, password_hash, name, role, journal_id, verified, affiliation)
@@ -68,17 +62,14 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 		`).bind(email, passwordHash, name, role, journalId, affiliation || null).run();
 
 		const userId = result.meta.last_row_id as number;
-		await clearVerifiedEmail({ kv: env.SESSIONS_KV, db: env.DB }, email);
-
-		const sessionData = {
+		const token = await createSession({ kv: env.SESSIONS_KV, db: env.DB }, {
 			userId,
 			email,
 			name,
 			role: role as "author" | "editor" | "reviewer",
 			journalId,
-		};
+		});
 
-		const token = await createSession({ kv: env.SESSIONS_KV, db: env.DB }, sessionData);
 		return new Response(null, {
 			status: 302,
 			headers: {

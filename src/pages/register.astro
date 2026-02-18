@@ -7,162 +7,114 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 
 <BaseLayout title="Register - Rubbish Publishing Group">
 	<div class="auth-page" style="align-items: flex-start; padding-top: 3rem;">
-		<div class="auth-card" style="max-width: 520px;">
+		<div class="auth-card" style="max-width: 560px;">
 			<h1>Create Account</h1>
 			<p class="auth-subtitle">Join the Rubbish Publishing Group submission platform</p>
 
 			{error && (
 				<div class="alert alert-error" id="error-msg">
 					{error === "email_taken" ? "This email is already registered. Please login." :
-					 error === "code_invalid" ? "Verification code is invalid or expired. Please request a new one." :
 					 error === "weak_password" ? "Password too short. Please use at least 8 characters." :
 					 error === "missing_fields" ? "Please fill in all required fields." :
-				 error === "missing_journal" ? "Editor/reviewer account must select an associated journal." :
-				 error === "password_mismatch" ? "Passwords do not match." :
-				 error === "invalid_role" ? "Invalid account role." :
-				 error === "invalid_input" ? "Input is too long or invalid." :
-				 error === "service_unavailable" ? "Service temporarily unavailable. Please try again later." :
-				 error === "server_error" ? "Server error. Please try again later." : error}
+					 error === "missing_journal" ? "Editor/reviewer account must select an associated journal." :
+					 error === "password_mismatch" ? "Passwords do not match." :
+					 error === "invalid_role" ? "Invalid account role." :
+					 error === "invalid_input" ? "Input is too long or invalid." :
+					 error === "captcha_failed" ? "Human verification failed. Please answer the challenge question." :
+					 error === "service_unavailable" ? "Service temporarily unavailable. Please try again later." :
+					 error === "server_error" ? "Server error. Please try again later." : error}
 				</div>
 			)}
 
-			<!-- Step 1: Email Verification -->
-			<div id="step1">
-				<h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-secondary);">Step 1 of 2: Verify Your Email</h3>
-
+			<form action="/api/auth/register" method="post" id="register-form">
 				<div class="form-group">
-					<label class="form-label" for="verify-email">Email Address <span>*</span></label>
-					<div class="verification-group">
-						<input
-							type="email"
-							id="verify-email"
-							class="form-input"
-							placeholder="your@email.com"
-							autocomplete="email"
-						/>
-						<button
-							type="button"
-							class="btn btn-secondary"
-							id="send-code-btn"
-							onclick="sendVerificationCode()"
-						>
-							Send Code
+					<label class="form-label">Account Type <span>*</span></label>
+					<div class="role-tabs" style="margin-bottom: 0;">
+						<button class="role-tab active" type="button" onclick="setRole('author')" id="role-author">
+							✏️ Author
+						</button>
+						<button class="role-tab" type="button" onclick="setRole('editor')" id="role-editor">
+							📋 Editor
+						</button>
+						<button class="role-tab" type="button" onclick="setRole('reviewer')" id="role-reviewer">
+							🔍 Reviewer
 						</button>
 					</div>
+					<input type="hidden" name="role" id="role-input" value="author" />
+					<p class="form-help" style="margin-top: 0.5rem;">Editor and reviewer accounts require journal affiliation and approval from existing editors.</p>
+				</div>
+
+				<div id="journal-select-group" style="display: none;" class="form-group">
+					<label class="form-label" for="journal-id">Associated Journal <span>*</span></label>
+					<select name="journal_id" id="journal-id" class="form-select">
+						<option value="">Select a journal...</option>
+						{journals.map((j) => (
+							<option value={j.id}>{j.name}</option>
+						))}
+					</select>
 				</div>
 
 				<div class="form-group">
-					<label class="form-label" for="verify-code">Verification Code <span>*</span></label>
-					<input
-						type="text"
-						id="verify-code"
-						class="form-input"
-						placeholder="6-digit code"
-						maxlength="6"
-						inputmode="numeric"
-					/>
-					<p class="form-help" id="code-status"></p>
+					<label class="form-label" for="email">Email Address <span>*</span></label>
+					<input type="email" id="email" name="email" class="form-input" required autocomplete="email" placeholder="your@email.com" />
 				</div>
 
-				<button type="button" class="btn btn-primary btn-full" onclick="verifyAndNext()">
-					Next Step
+				<div class="form-group">
+					<label class="form-label" for="name">Full Name <span>*</span></label>
+					<input type="text" id="name" name="name" class="form-input" required placeholder="Your full name" />
+				</div>
+
+				<div class="form-group">
+					<label class="form-label" for="affiliation">Institution / Affiliation</label>
+					<input type="text" id="affiliation" name="affiliation" class="form-input" placeholder="University / Research Institute / Company" />
+				</div>
+
+				<div class="form-group">
+					<label class="form-label" for="password">Password <span>*</span></label>
+					<input
+						type="password"
+						id="password"
+						name="password"
+						class="form-input"
+						required
+						minlength="8"
+						placeholder="At least 8 characters"
+						autocomplete="new-password"
+						oninput="checkPasswordStrength(this.value)"
+					/>
+					<div id="password-strength" style="margin-top: 0.25rem; font-size: 0.8rem;"></div>
+				</div>
+
+				<div class="form-group">
+					<label class="form-label" for="password2">Confirm Password <span>*</span></label>
+					<input
+						type="password"
+						id="password2"
+						name="password2"
+						class="form-input"
+						required
+						placeholder="Re-enter your password"
+						autocomplete="new-password"
+						oninput="checkPasswordMatch()"
+					/>
+					<div id="password-match" style="margin-top: 0.25rem; font-size: 0.8rem;"></div>
+				</div>
+
+				<div class="form-group">
+					<label class="form-label" for="captcha-answer">Human Verification <span>*</span></label>
+					<div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
+						<strong id="captcha-question">Loading challenge...</strong>
+						<button type="button" class="btn btn-sm btn-secondary" onclick="regenCaptcha()">↻ Refresh</button>
+					</div>
+					<input type="hidden" name="captcha_expected" id="captcha-expected" />
+					<input type="text" id="captcha-answer" name="captcha_answer" class="form-input" required placeholder="Enter answer" inputmode="numeric" />
+					<p class="form-help">Please solve the math question to verify you are human.</p>
+				</div>
+
+				<button type="submit" class="btn btn-primary btn-full btn-lg" id="submit-btn">
+					Create Account
 				</button>
-			</div>
-
-			<!-- Step 2: Account Info -->
-			<div id="step2" style="display: none;">
-				<h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-secondary);">Step 2 of 2: Account Details</h3>
-
-				<form action="/api/auth/register" method="post" id="register-form">
-					<input type="hidden" name="email" id="form-email" />
-					<input type="hidden" name="code" id="form-code" />
-
-					<div class="form-group">
-						<label class="form-label">Account Type <span>*</span></label>
-						<div class="role-tabs" style="margin-bottom: 0;">
-							<button class="role-tab active" type="button" onclick="setRole('author')" id="role-author">
-								✏️ Author
-							</button>
-							<button class="role-tab" type="button" onclick="setRole('editor')" id="role-editor">
-								📋 Editor
-							</button>
-							<button class="role-tab" type="button" onclick="setRole('reviewer')" id="role-reviewer">
-								🔍 Reviewer
-							</button>
-						</div>
-						<input type="hidden" name="role" id="role-input" value="author" />
-						<p class="form-help" style="margin-top: 0.5rem;">Editor and reviewer accounts require journal affiliation and approval from existing editors.</p>
-					</div>
-
-					<div id="journal-select-group" style="display: none;" class="form-group">
-						<label class="form-label" for="journal-id">Associated Journal <span>*</span></label>
-						<select name="journal_id" id="journal-id" class="form-select">
-							<option value="">Select a journal...</option>
-							{journals.map((j) => (
-								<option value={j.id}>{j.name}</option>
-							))}
-						</select>
-					</div>
-
-					<div class="form-group">
-						<label class="form-label" for="name">Full Name <span>*</span></label>
-						<input
-							type="text"
-							id="name"
-							name="name"
-							class="form-input"
-							required
-							placeholder="Your full name"
-						/>
-					</div>
-
-					<div class="form-group">
-						<label class="form-label" for="affiliation">Institution / Affiliation</label>
-						<input
-							type="text"
-							id="affiliation"
-							name="affiliation"
-							class="form-input"
-							placeholder="University / Research Institute / Company"
-						/>
-					</div>
-
-					<div class="form-group">
-						<label class="form-label" for="password">Password <span>*</span></label>
-						<input
-							type="password"
-							id="password"
-							name="password"
-							class="form-input"
-							required
-							minlength="8"
-							placeholder="At least 8 characters"
-							autocomplete="new-password"
-							oninput="checkPasswordStrength(this.value)"
-						/>
-						<div id="password-strength" style="margin-top: 0.25rem; font-size: 0.8rem;"></div>
-					</div>
-
-					<div class="form-group">
-						<label class="form-label" for="password2">Confirm Password <span>*</span></label>
-						<input
-							type="password"
-							id="password2"
-							name="password2"
-							class="form-input"
-							required
-							placeholder="Re-enter your password"
-							autocomplete="new-password"
-							oninput="checkPasswordMatch()"
-						/>
-						<div id="password-match" style="margin-top: 0.25rem; font-size: 0.8rem;"></div>
-					</div>
-
-					<button type="submit" class="btn btn-primary btn-full btn-lg" id="submit-btn">
-						Create Account
-					</button>
-				</form>
-			</div>
+			</form>
 
 			<div class="auth-divider"><span>Already have an account?</span></div>
 			<a href="/login" class="btn btn-secondary btn-full">Back to Login</a>
@@ -171,122 +123,28 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 </BaseLayout>
 
 <script>
-	let verifiedEmail = "";
-
-	async function sendVerificationCode() {
-		const emailInput = document.getElementById("verify-email") as HTMLInputElement;
-		const email = emailInput.value.trim();
-		const btn = document.getElementById("send-code-btn") as HTMLButtonElement;
-		const status = document.getElementById("code-status")!;
-
-		if (!email || !email.includes("@")) {
-			status.textContent = "Please enter a valid email address";
-			status.style.color = "var(--accent)";
-			return;
-		}
-
-		btn.disabled = true;
-		btn.textContent = "Sending...";
-		status.textContent = "";
-
-		try {
-			const resp = await fetch("/api/auth/send-code", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email }),
-			});
-			const data = await resp.json() as { success?: boolean; error?: string };
-
-			if (data.success) {
-				status.textContent = "Verification code sent to your inbox. Please check your spam folder if not received. (Valid for 10 minutes)";
-				status.style.color = "var(--green)";
-				// Countdown
-				let countdown = 60;
-				const interval = setInterval(() => {
-					btn.textContent = `Resend in ${countdown}s`;
-					countdown--;
-					if (countdown < 0) {
-						clearInterval(interval);
-						btn.disabled = false;
-						btn.textContent = "Resend Code";
-					}
-				}, 1000);
-			} else {
-				status.textContent = data.error || "Failed to send code. Please try again.";
-				status.style.color = "var(--accent)";
-				btn.disabled = false;
-				btn.textContent = "Send Code";
-			}
-		} catch {
-			status.textContent = "Network error. Please try again.";
-			status.style.color = "var(--accent)";
-			btn.disabled = false;
-			btn.textContent = "Send Code";
-		}
-	}
-
-	async function verifyAndNext() {
-		const email = (document.getElementById("verify-email") as HTMLInputElement).value.trim();
-		const code = (document.getElementById("verify-code") as HTMLInputElement).value.trim();
-		const status = document.getElementById("code-status")!;
-
-		if (!email || !code) {
-			status.textContent = "Please enter your email and verification code";
-			status.style.color = "var(--accent)";
-			return;
-		}
-
-		if (code.length !== 6 || !/^\d+$/.test(code)) {
-			status.textContent = "Please enter the 6-digit code from your email";
-			status.style.color = "var(--accent)";
-			return;
-		}
-
-		status.textContent = "Verifying...";
-		status.style.color = "var(--text-secondary)";
-
-		try {
-			const resp = await fetch("/api/auth/verify-code", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email, code }),
-			});
-			const data = await resp.json() as { valid?: boolean; error?: string };
-
-			if (data.valid) {
-				verifiedEmail = email;
-				(document.getElementById("form-email") as HTMLInputElement).value = email;
-				(document.getElementById("form-code") as HTMLInputElement).value = code;
-				(document.getElementById("step1") as HTMLElement).style.display = "none";
-				(document.getElementById("step2") as HTMLElement).style.display = "block";
-				// Pre-fill email display
-				status.textContent = "";
-			} else {
-				status.textContent = "Invalid or expired code. Please request a new one.";
-				status.style.color = "var(--accent)";
-			}
-		} catch {
-			status.textContent = "Verification failed. Please try again.";
-			status.style.color = "var(--accent)";
-		}
-	}
-
-	function setRole(role: string) {
+	function setRole(role) {
 		document.querySelectorAll(".role-tab").forEach((t) => t.classList.remove("active"));
 		document.getElementById(`role-${role}`)?.classList.add("active");
-		(document.getElementById("role-input") as HTMLInputElement).value = role;
-		const jGroup = document.getElementById("journal-select-group")!;
-		const journalSelect = document.getElementById("journal-id") as HTMLSelectElement;
+		document.getElementById("role-input").value = role;
+		const jGroup = document.getElementById("journal-select-group");
+		const journalSelect = document.getElementById("journal-id");
 		const requireJournal = role !== "author";
 		jGroup.style.display = requireJournal ? "block" : "none";
 		journalSelect.required = requireJournal;
-		if (!requireJournal) {
-			journalSelect.value = "";
-		}
+		if (!requireJournal) journalSelect.value = "";
 	}
 
-	function checkPasswordStrength(password: string) {
-		const el = document.getElementById("password-strength")!;
+	function regenCaptcha() {
+		const a = Math.floor(Math.random() * 8) + 2;
+		const b = Math.floor(Math.random() * 8) + 2;
+		document.getElementById("captcha-question").textContent = `${a} + ${b} = ?`;
+		document.getElementById("captcha-expected").value = String(a + b);
+		document.getElementById("captcha-answer").value = "";
+	}
+
+	function checkPasswordStrength(password) {
+		const el = document.getElementById("password-strength");
 		if (!password) { el.textContent = ""; return; }
 		if (password.length < 8) {
 			el.textContent = "Too short (min 8 characters)";
@@ -302,9 +160,9 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 	}
 
 	function checkPasswordMatch() {
-		const p1 = (document.getElementById("password") as HTMLInputElement).value;
-		const p2 = (document.getElementById("password2") as HTMLInputElement).value;
-		const el = document.getElementById("password-match")!;
+		const p1 = document.getElementById("password").value;
+		const p2 = document.getElementById("password2").value;
+		const el = document.getElementById("password-match");
 		if (!p2) { el.textContent = ""; return; }
 		if (p1 === p2) {
 			el.textContent = "Passwords match";
@@ -315,14 +173,23 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 		}
 	}
 
-	// Prevent form submission if passwords don't match
 	document.getElementById("register-form")?.addEventListener("submit", (e) => {
-		const p1 = (document.getElementById("password") as HTMLInputElement).value;
-		const p2 = (document.getElementById("password2") as HTMLInputElement).value;
+		const p1 = document.getElementById("password").value;
+		const p2 = document.getElementById("password2").value;
+		const expected = document.getElementById("captcha-expected").value;
+		const answer = document.getElementById("captcha-answer").value.trim();
 		if (p1 !== p2) {
 			e.preventDefault();
-			document.getElementById("password-match")!.textContent = "Passwords do not match";
-			document.getElementById("password-match")!.style.color = "var(--accent)";
+			document.getElementById("password-match").textContent = "Passwords do not match";
+			document.getElementById("password-match").style.color = "var(--accent)";
+			return;
+		}
+		if (!answer || answer !== expected) {
+			e.preventDefault();
+			alert("Human verification failed. Please solve the math question.");
+			regenCaptcha();
 		}
 	});
+
+	regenCaptcha();
 </script>

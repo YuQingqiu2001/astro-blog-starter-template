@@ -2,7 +2,6 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getSession, getSessionToken } from "../lib/auth";
 
-// If already logged in, redirect
 const token = getSessionToken(Astro.request);
 const env = Astro.locals.runtime?.env;
 if (token && env?.DB) {
@@ -25,56 +24,48 @@ const redirect = new URL(Astro.request.url).searchParams.get("redirect") || "";
 			{error && (
 				<div class="alert alert-error">
 					{error === "invalid" ? "Incorrect email or password. Please try again." :
+					 error === "role_mismatch" ? "This account type does not match your selected role tab." :
+					 error === "captcha_failed" ? "Human verification failed. Please try again." :
 					 error === "unavailable" ? "Service temporarily unavailable. Please try again later." : error}
 				</div>
 			)}
 
-			<!-- Role tabs (visual only, for UX) -->
 			<div class="role-tabs" id="role-tabs">
-				<button class="role-tab active" onclick="setRole('author')" type="button" id="tab-author">
-					✏️ Author
-				</button>
-				<button class="role-tab" onclick="setRole('editor')" type="button" id="tab-editor">
-					📋 Editor
-				</button>
-				<button class="role-tab" onclick="setRole('reviewer')" type="button" id="tab-reviewer">
-					🔍 Reviewer
-				</button>
+				<button class="role-tab active" data-role="author" type="button" id="tab-author">✏️ Author</button>
+				<button class="role-tab" data-role="editor" type="button" id="tab-editor">📋 Editor</button>
+				<button class="role-tab" data-role="reviewer" type="button" id="tab-reviewer">🔍 Reviewer</button>
 			</div>
 
-			<form action="/api/auth/login" method="post">
+			<form action="/api/auth/login" method="post" id="login-form">
 				<input type="hidden" name="redirect" value={redirect} />
+				<input type="hidden" name="role" id="role-input" value="author" />
+				<input type="hidden" name="captcha_expected" id="captcha-expected" />
 
 				<div class="form-group">
 					<label class="form-label" for="email">Email Address</label>
-					<input
-						type="email"
-						id="email"
-						name="email"
-						class="form-input"
-						required
-						autocomplete="email"
-						placeholder="your@email.com"
-					/>
+					<input type="email" id="email" name="email" class="form-input" required autocomplete="email" placeholder="your@email.com" />
 				</div>
 
 				<div class="form-group">
 					<label class="form-label" for="password">Password</label>
-					<input
-						type="password"
-						id="password"
-						name="password"
-						class="form-input"
-						required
-						autocomplete="current-password"
-						placeholder="••••••••"
-					/>
+					<input type="password" id="password" name="password" class="form-input" required autocomplete="current-password" placeholder="••••••••" />
 				</div>
 
-				<button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top: 0.5rem;">
-					Sign In
-				</button>
+				<div class="form-group">
+					<label class="form-label" for="captcha-answer">Human Verification</label>
+					<div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
+						<strong id="captcha-question">Loading challenge...</strong>
+						<button type="button" class="btn btn-sm btn-secondary" id="captcha-refresh">↻ Refresh</button>
+					</div>
+					<input type="text" id="captcha-answer" name="captcha_answer" class="form-input" required inputmode="numeric" placeholder="Enter answer" />
+				</div>
+
+				<button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top: 0.5rem;">Sign In</button>
 			</form>
+
+			<p style="text-align:center; margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">
+				Forgot password? Please contact administrator or editorial office to reset your password.
+			</p>
 
 			<div class="auth-divider"><span>Don't have an account?</span></div>
 
@@ -90,9 +81,37 @@ const redirect = new URL(Astro.request.url).searchParams.get("redirect") || "";
 </BaseLayout>
 
 <script>
-	function setRole(role: string) {
-		const tabs = document.querySelectorAll(".role-tab");
-		tabs.forEach((t) => t.classList.remove("active"));
-		document.getElementById(`tab-${role}`)?.classList.add("active");
+	function activateRole(role) {
+		document.querySelectorAll("#role-tabs .role-tab").forEach((tab) => {
+			tab.classList.toggle("active", tab.dataset.role === role);
+		});
+		document.getElementById("role-input").value = role;
 	}
+
+	function regenCaptcha() {
+		const a = Math.floor(Math.random() * 8) + 2;
+		const b = Math.floor(Math.random() * 8) + 2;
+		document.getElementById("captcha-question").textContent = `${a} + ${b} = ?`;
+		document.getElementById("captcha-expected").value = String(a + b);
+		document.getElementById("captcha-answer").value = "";
+	}
+
+	document.querySelectorAll("#role-tabs .role-tab").forEach((btn) => {
+		btn.addEventListener("click", () => activateRole(btn.dataset.role));
+	});
+
+	document.getElementById("captcha-refresh")?.addEventListener("click", regenCaptcha);
+
+	document.getElementById("login-form")?.addEventListener("submit", (e) => {
+		const expected = document.getElementById("captcha-expected").value;
+		const answer = document.getElementById("captcha-answer").value.trim();
+		if (!answer || answer !== expected) {
+			e.preventDefault();
+			alert("Human verification failed. Please solve the math question.");
+			regenCaptcha();
+		}
+	});
+
+	activateRole("author");
+	regenCaptcha();
 </script>
