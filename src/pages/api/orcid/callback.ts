@@ -9,23 +9,23 @@ interface OrcidTokenResponse {
 
 export const GET: APIRoute = async ({ url, locals, redirect }) => {
 	const env = locals.runtime?.env as Record<string, any> | undefined;
-	const siteUrl = env?.SITE_URL || "https://rubbishpublishing.org";
 	const clientId = env?.ORCID_CLIENT_ID || "";
 	const clientSecret = env?.ORCID_CLIENT_SECRET || "";
 	const code = url.searchParams.get("code") || "";
 	const state = url.searchParams.get("state") || "";
 	const remoteError = url.searchParams.get("error") || "";
 	const remoteErrorDescription = url.searchParams.get("error_description") || "";
+	const origin = url.origin;
 
 	if (remoteError) {
-		return redirect(`/orcid/callback?error=${encodeURIComponent(remoteError)}&error_description=${encodeURIComponent(remoteErrorDescription)}&state=${encodeURIComponent(state)}`);
+		return redirect(`/orcid/callback?error=${encodeURIComponent(remoteError)}&error_description=${encodeURIComponent(remoteErrorDescription || "Authorization was denied by ORCID.")}&state=${encodeURIComponent(state)}`);
 	}
 
 	if (!clientId || !clientSecret || !code || !state) {
-		return redirect(`/orcid/callback?error=missing_configuration&state=${encodeURIComponent(state)}`);
+		return redirect(`/orcid/callback?error=missing_configuration&error_description=${encodeURIComponent("ORCID OAuth configuration is incomplete. Please set ORCID_CLIENT_ID and ORCID_CLIENT_SECRET.")}&state=${encodeURIComponent(state)}`);
 	}
 
-	const redirectUri = `${siteUrl}/api/orcid/callback`;
+	const redirectUri = `${origin}/api/orcid/callback`;
 
 	try {
 		const tokenResponse = await fetch("https://orcid.org/oauth/token", {
@@ -54,6 +54,6 @@ export const GET: APIRoute = async ({ url, locals, redirect }) => {
 		return redirect(`/orcid/callback?orcid=${encodeURIComponent(orcid)}&state=${encodeURIComponent(state)}`);
 	} catch (error) {
 		console.error("ORCID callback error:", error);
-		return redirect(`/orcid/callback?error=orcid_exchange_failed&state=${encodeURIComponent(state)}`);
+		return redirect(`/orcid/callback?error=orcid_exchange_failed&error_description=${encodeURIComponent("Network error while contacting ORCID.")}&state=${encodeURIComponent(state)}`);
 	}
 };

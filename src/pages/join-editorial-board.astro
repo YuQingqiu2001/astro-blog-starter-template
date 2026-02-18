@@ -201,7 +201,8 @@ const positionOptions = [
 		if (event.data.orcid) {
 			orcidInput.value = sanitizeOrcid(event.data.orcid);
 		} else if (event.data.error) {
-			alert("ORCID authorization failed. Please enter ORCID manually or contact support to configure ORCID OAuth.");
+			const details = event.data.errorDescription ? `\nDetails: ${event.data.errorDescription}` : "";
+			alert(`ORCID authorization failed. Please try again.${details}`);
 		}
 	});
 </script>
