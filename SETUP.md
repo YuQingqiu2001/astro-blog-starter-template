@@ -12,6 +12,12 @@ wrangler d1 create journal-db
 
 将返回的 `database_id` 填入 `wrangler.json` 的 `d1_databases[0].database_id`。
 
+绑定名（binding）推荐使用：
+- D1: `rpg`
+- KV: `rubbish`
+- R2: `article`（对应桶名可为 `journal-artical`）
+
+
 初始化数据库：
 ```bash
 wrangler d1 execute journal-db --file=./migrations/001_initial.sql

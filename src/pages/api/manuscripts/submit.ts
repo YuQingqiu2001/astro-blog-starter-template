@@ -11,15 +11,21 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	const env = locals.runtime?.env;
 	const db = getDb(env as any);
 	const bucket = getManuscriptsBucket(env as any);
-	if (!db || !bucket) {
-		return redirect("/author/submit?error=服务暂时不可用");
+
+	if (!db) {
+		console.error("Manuscript submit failed: D1 binding not found. Expected DB/rpg/etc.");
+		return redirect("/author/submit?error=database_unavailable");
+	}
+	if (!bucket) {
+		console.error("Manuscript submit failed: R2 binding not found. Expected MANUSCRIPTS_BUCKET/article/journal_artical/etc.");
+		return redirect("/author/submit?error=storage_unavailable");
 	}
 
 	let formData: FormData;
 	try {
 		formData = await request.formData();
 	} catch {
-		return redirect("/author/submit?error=表单解析失败");
+		return redirect("/author/submit?error=invalid_form");
 	}
 
 	const title = (formData.get("title") as string || "").trim();
@@ -35,7 +41,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	}
 
 	if (title.length > 300 || authors.length > 500 || abstract.length > 5000 || keywords.length > 300) {
-		return redirect("/author/submit?error=字段内容过长");
+		return redirect("/author/submit?error=invalid_input");
 	}
 
 	if (manuscriptFile.size > 50 * 1024 * 1024) {
@@ -43,7 +49,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	}
 
 	const fileName = manuscriptFile.name.toLowerCase();
-	if (!fileName.endsWith(".pdf") || manuscriptFile.type && manuscriptFile.type !== "application/pdf") {
+	if (!fileName.endsWith(".pdf") || (manuscriptFile.type && manuscriptFile.type !== "application/pdf")) {
 		return redirect("/author/submit?error=invalid_file");
 	}
 
@@ -64,6 +70,6 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 		return redirect("/author/submit?success=1");
 	} catch (err) {
 		console.error("Submit error:", err);
-		return redirect("/author/submit?error=提交失败，请稍后重试");
+		return redirect("/author/submit?error=submit_failed");
 	}
 };

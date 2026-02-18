@@ -20,7 +20,12 @@ const success = new URL(Astro.request.url).searchParams.get("success");
 			{error === "missing_fields" ? "请填写所有必填字段。" :
 			 error === "file_too_large" ? "文件过大，请上传不超过50MB的PDF文件。" :
 			 error === "invalid_file" ? "请上传PDF格式的稿件文件。" :
-			 error === "invalid_journal" ? "请选择有效的期刊。" : error}
+			 error === "invalid_journal" ? "请选择有效的期刊。" :
+			 error === "database_unavailable" ? "数据库未连接，请检查 Cloudflare D1 绑定（DB / rpg）。" :
+			 error === "storage_unavailable" ? "稿件存储未连接，请检查 Cloudflare R2 绑定（article / journal_artical / MANUSCRIPTS_BUCKET）。" :
+			 error === "invalid_form" ? "表单解析失败，请重试。" :
+			 error === "invalid_input" ? "字段内容过长或格式不正确。" :
+			 error === "submit_failed" ? "提交失败，请稍后重试。" : error}
 		</div>
 	)}
 

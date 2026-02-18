@@ -1,19 +1,40 @@
 {
-	"name": "astro-blog-starter-template",
-	"compatibility_date": "2025-10-08",
-	"compatibility_flags": ["nodejs_compat"],
-	"main": "./dist/_worker.js/index.js",
-	"assets": {
-		"directory": "./dist",
-		"binding": "ASSETS"
-	},
-	"observability": {
-		"enabled": true
-	},
-	"upload_source_maps": true,
-	"vars": {
-		"EMAIL_FROM": "noreply@rubbishpublishing.org",
-		"SITE_NAME": "Rubbish Publishing Group",
-		"SITE_URL": "https://rubbishpublishing.org"
-	}
+  "name": "astro-blog-starter-template",
+  "compatibility_date": "2025-10-08",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "main": "./dist/_worker.js/index.js",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "vars": {
+    "EMAIL_FROM": "noreply@rubbishpublishing.org",
+    "SITE_NAME": "Rubbish Publishing Group",
+    "SITE_URL": "https://rubbishpublishing.org"
+  },
+  "d1_databases": [
+    {
+      "binding": "rpg",
+      "database_name": "journal-db",
+      "database_id": "YOUR_D1_DATABASE_ID"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "rubbish",
+      "id": "YOUR_KV_NAMESPACE_ID"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "article",
+      "bucket_name": "journal-artical"
+    }
+  ]
 }
