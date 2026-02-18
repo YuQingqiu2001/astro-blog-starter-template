@@ -17,6 +17,7 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 					 error === "weak_password" ? "Password too short. Please use at least 8 characters." :
 					 error === "missing_fields" ? "Please fill in all required fields." :
 					 error === "missing_journal" ? "Editor/reviewer account must select an associated journal." :
+				 error === "not_board_member" ? "Only emails already on the editorial board can register as Editor/Reviewer." :
 					 error === "password_mismatch" ? "Passwords do not match." :
 					 error === "invalid_role" ? "Invalid account role." :
 					 error === "invalid_input" ? "Input is too long or invalid." :
@@ -42,7 +43,7 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 						</button>
 					</div>
 					<input type="hidden" name="role" id="role-input" value="author" />
-					<p class="form-help" style="margin-top: 0.5rem;">You can freely switch role here. Journal selection is optional and used for faster routing.</p>
+					<p class="form-help" style="margin-top: 0.5rem;">You can switch role here. Editor/Reviewer registration is restricted to emails already on the editorial board.</p>
 				</div>
 
 				<div id="journal-select-group" style="display: none;" class="form-group">
@@ -140,7 +141,7 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 		const journalSelect = document.getElementById("journal-id");
 		const requireJournal = role !== "author";
 		jGroup.style.display = requireJournal ? "block" : "none";
-		journalSelect.required = false;
+		journalSelect.required = requireJournal;
 	}
 
 	function regenCaptcha() {

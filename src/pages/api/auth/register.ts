@@ -11,6 +11,29 @@ import { getDb, getKv } from "../../../lib/runtime-env";
 
 const allowedRoles = ["author", "editor", "reviewer"] as const;
 
+async function isBoardMemberEmail(db: D1Database, email: string, journalId: number | null): Promise<boolean> {
+	if (journalId) {
+		const row = await db.prepare(`
+			SELECT eb.user_id
+			FROM editorial_board eb
+			JOIN users u ON u.id = eb.user_id
+			WHERE lower(u.email) = ? AND eb.journal_id = ?
+			LIMIT 1
+		`).bind(email, journalId).first();
+		return Boolean(row);
+	}
+
+	const row = await db.prepare(`
+		SELECT eb.user_id
+		FROM editorial_board eb
+		JOIN users u ON u.id = eb.user_id
+		WHERE lower(u.email) = ?
+		LIMIT 1
+	`).bind(email).first();
+	return Boolean(row);
+}
+
+
 function normalizeOrcid(orcidInput: string): string | null {
 	if (!orcidInput) return null;
 	const value = orcidInput.trim();
@@ -62,12 +85,23 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 		return redirect("/register?error=invalid_role");
 	}
 
+	if ((role === "editor" || role === "reviewer") && !journalId) {
+		return redirect("/register?error=missing_journal");
+	}
+
 	const env = locals.runtime?.env;
 	const db = getDb(env as any);
 	const kv = getKv(env as any);
 	const selectedRole = role as "author" | "editor" | "reviewer";
 
 	try {
+		if (db && selectedRole !== "author") {
+			const canRegisterRole = await isBoardMemberEmail(db, email, journalId);
+			if (!canRegisterRole) {
+				return redirect("/register?error=not_board_member");
+			}
+		}
+
 		const passwordHash = await hashPassword(password);
 		let userId: number;
 		let roleJournalId: number | null = journalId;
@@ -127,6 +161,9 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 				roleJournalId = roleRow.journal_id;
 			}
 		} else {
+			if (selectedRole !== "author") {
+				return redirect("/register?error=service_unavailable");
+			}
 			const existing = findLocalUserByEmail(email);
 			if (!existing) {
 				userId = createLocalUser({
