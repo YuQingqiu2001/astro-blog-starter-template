@@ -1,0 +1,168 @@
+---
+import DashboardLayout from "../../layouts/DashboardLayout.astro";
+import { journals } from "../../data/journals";
+
+const error = new URL(Astro.request.url).searchParams.get("error");
+const success = new URL(Astro.request.url).searchParams.get("success");
+---
+
+<DashboardLayout title="投递稿件" activeNav="/author/submit">
+	<h1 class="dashboard-page-title">✏️ 投递新稿件</h1>
+
+	{success && (
+		<div class="alert alert-success">
+			稿件已成功提交！您可以在<a href="/author">我的稿件</a>中查看稿件状态。
+		</div>
+	)}
+
+	{error && (
+		<div class="alert alert-error">
+			{error === "missing_fields" ? "请填写所有必填字段。" :
+			 error === "file_too_large" ? "文件过大，请上传不超过50MB的PDF文件。" :
+			 error === "invalid_file" ? "请上传PDF格式的稿件文件。" : error}
+		</div>
+	)}
+
+	<div style="max-width: 760px;">
+		<form action="/api/manuscripts/submit" method="post" enctype="multipart/form-data">
+			<div class="card">
+				<div class="card-header">
+					<h2 style="font-size: 1rem;">基本信息</h2>
+				</div>
+				<div class="card-body">
+					<div class="form-group">
+						<label class="form-label" for="journal-id">投递期刊 <span>*</span></label>
+						<select name="journal_id" id="journal-id" class="form-select" required>
+							<option value="">请选择目标期刊...</option>
+							{journals.map((j) => (
+								<option value={j.id}>{j.name} - IF: {j.impactFactor}</option>
+							))}
+						</select>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label" for="title">稿件标题 <span>*</span></label>
+						<input
+							type="text"
+							id="title"
+							name="title"
+							class="form-input"
+							required
+							placeholder="稿件的完整标题"
+						/>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label" for="authors">作者列表 <span>*</span></label>
+						<input
+							type="text"
+							id="authors"
+							name="authors"
+							class="form-input"
+							required
+							placeholder="例如：张三, 李四, 王五（多位作者用逗号分隔）"
+						/>
+						<p class="form-help">请按照贡献度排列，通讯作者请在名字后加*</p>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label" for="keywords">关键词 <span>*</span></label>
+						<input
+							type="text"
+							id="keywords"
+							name="keywords"
+							class="form-input"
+							required
+							placeholder="例如：玄学, 量子力学, 荒谬性（用逗号分隔，3-8个关键词）"
+						/>
+					</div>
+				</div>
+			</div>
+
+			<div class="card" style="margin-top: 1rem;">
+				<div class="card-header">
+					<h2 style="font-size: 1rem;">摘要</h2>
+				</div>
+				<div class="card-body">
+					<div class="form-group" style="margin-bottom: 0;">
+						<label class="form-label" for="abstract">摘要 <span>*</span></label>
+						<textarea
+							id="abstract"
+							name="abstract"
+							class="form-textarea"
+							required
+							rows="8"
+							placeholder="请提供不超过300字的研究摘要，包括研究目的、方法、主要结果和结论..."
+						></textarea>
+						<p class="form-help">字数建议：100-300字</p>
+					</div>
+				</div>
+			</div>
+
+			<div class="card" style="margin-top: 1rem;">
+				<div class="card-header">
+					<h2 style="font-size: 1rem;">稿件文件</h2>
+				</div>
+				<div class="card-body">
+					<div class="form-group" style="margin-bottom: 0;">
+						<label class="form-label" for="manuscript">稿件文件 <span>*</span></label>
+						<div class="upload-area" onclick="document.getElementById('manuscript').click()">
+							<p style="font-size: 1.5rem; margin-bottom: 0.5rem;">📄</p>
+							<p>点击此处或拖拽文件上传</p>
+							<p class="text-xs text-muted" style="margin-top: 0.5rem;">支持 PDF 格式，最大 50MB</p>
+						</div>
+						<input
+							type="file"
+							id="manuscript"
+							name="manuscript"
+							accept=".pdf"
+							required
+							style="display: none;"
+							onchange="updateFileName(this)"
+						/>
+						<p class="form-help" id="manuscript-filename"></p>
+					</div>
+				</div>
+			</div>
+
+			<div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+				<a href="/author" class="btn btn-secondary">取消</a>
+				<button type="submit" class="btn btn-primary btn-lg">
+					提交稿件
+				</button>
+			</div>
+		</form>
+	</div>
+</DashboardLayout>
+
+<script>
+	function updateFileName(input: HTMLInputElement) {
+		const el = document.getElementById("manuscript-filename")!;
+		if (input.files && input.files[0]) {
+			const file = input.files[0];
+			const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+			el.textContent = `已选择：${file.name}（${sizeMB} MB）`;
+		}
+	}
+
+	// Drag and drop
+	const uploadArea = document.querySelector(".upload-area")!;
+	uploadArea.addEventListener("dragover", (e) => {
+		e.preventDefault();
+		uploadArea.classList.add("drag-over");
+	});
+	uploadArea.addEventListener("dragleave", () => {
+		uploadArea.classList.remove("drag-over");
+	});
+	uploadArea.addEventListener("drop", (e: DragEvent) => {
+		e.preventDefault();
+		uploadArea.classList.remove("drag-over");
+		const input = document.getElementById("manuscript") as HTMLInputElement;
+		if (e.dataTransfer?.files?.[0]) {
+			const dt = new DataTransfer();
+			dt.items.add(e.dataTransfer.files[0]);
+			input.files = dt.files;
+			updateFileName(input);
+		}
+	});
+</script>

@@ -1,0 +1,259 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { journals } from "../data/journals";
+
+const error = new URL(Astro.request.url).searchParams.get("error");
+---
+
+<BaseLayout title="注册 - 玄学前沿期刊群">
+	<div class="auth-page" style="align-items: flex-start; padding-top: 3rem;">
+		<div class="auth-card" style="max-width: 520px;">
+			<h1>注册账号</h1>
+			<p class="auth-subtitle">加入玄学前沿期刊投稿平台</p>
+
+			{error && (
+				<div class="alert alert-error" id="error-msg">
+					{error === "email_taken" ? "该邮箱已被注册，请直接登录。" :
+					 error === "code_invalid" ? "验证码错误或已过期，请重新获取。" :
+					 error === "weak_password" ? "密码强度不足，请至少使用8位字符。" : error}
+				</div>
+			)}
+
+			<!-- Step 1: Email Verification -->
+			<div id="step1">
+				<h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-secondary);">步骤 1/2：验证邮箱</h3>
+
+				<div class="form-group">
+					<label class="form-label" for="verify-email">邮箱地址 <span>*</span></label>
+					<div class="verification-group">
+						<input
+							type="email"
+							id="verify-email"
+							class="form-input"
+							placeholder="your@email.com"
+							autocomplete="email"
+						/>
+						<button
+							type="button"
+							class="btn btn-secondary"
+							id="send-code-btn"
+							onclick="sendVerificationCode()"
+						>
+							获取验证码
+						</button>
+					</div>
+				</div>
+
+				<div class="form-group">
+					<label class="form-label" for="verify-code">验证码 <span>*</span></label>
+					<input
+						type="text"
+						id="verify-code"
+						class="form-input"
+						placeholder="6位验证码"
+						maxlength="6"
+						inputmode="numeric"
+					/>
+					<p class="form-help" id="code-status"></p>
+				</div>
+
+				<button type="button" class="btn btn-primary btn-full" onclick="verifyAndNext()">
+					下一步
+				</button>
+			</div>
+
+			<!-- Step 2: Account Info -->
+			<div id="step2" style="display: none;">
+				<h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-secondary);">步骤 2/2：填写账号信息</h3>
+
+				<form action="/api/auth/register" method="post" id="register-form">
+					<input type="hidden" name="email" id="form-email" />
+					<input type="hidden" name="code" id="form-code" />
+
+					<div class="form-group">
+						<label class="form-label">账号类型 <span>*</span></label>
+						<div class="role-tabs" style="margin-bottom: 0;">
+							<button class="role-tab active" type="button" onclick="setRole('author')" id="role-author">
+								✏️ 作者
+							</button>
+							<button class="role-tab" type="button" onclick="setRole('editor')" id="role-editor">
+								📋 编辑
+							</button>
+							<button class="role-tab" type="button" onclick="setRole('reviewer')" id="role-reviewer">
+								🔍 审稿人
+							</button>
+						</div>
+						<input type="hidden" name="role" id="role-input" value="author" />
+						<p class="form-help" style="margin-top: 0.5rem;">编辑和审稿人账号需关联期刊，并由现有编辑审核。</p>
+					</div>
+
+					<div id="journal-select-group" style="display: none;" class="form-group">
+						<label class="form-label" for="journal-id">关联期刊 <span>*</span></label>
+						<select name="journal_id" id="journal-id" class="form-select">
+							<option value="">请选择期刊...</option>
+							{journals.map((j) => (
+								<option value={j.id}>{j.name} ({j.nameEn})</option>
+							))}
+						</select>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label" for="name">姓名 <span>*</span></label>
+						<input
+							type="text"
+							id="name"
+							name="name"
+							class="form-input"
+							required
+							placeholder="真实姓名"
+						/>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label" for="affiliation">所属机构</label>
+						<input
+							type="text"
+							id="affiliation"
+							name="affiliation"
+							class="form-input"
+							placeholder="大学/研究所/公司"
+						/>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label" for="password">密码 <span>*</span></label>
+						<input
+							type="password"
+							id="password"
+							name="password"
+							class="form-input"
+							required
+							minlength="8"
+							placeholder="至少8位字符"
+							autocomplete="new-password"
+						/>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label" for="password2">确认密码 <span>*</span></label>
+						<input
+							type="password"
+							id="password2"
+							name="password2"
+							class="form-input"
+							required
+							placeholder="再次输入密码"
+							autocomplete="new-password"
+						/>
+					</div>
+
+					<button type="submit" class="btn btn-primary btn-full btn-lg">
+						注册账号
+					</button>
+				</form>
+			</div>
+
+			<div class="auth-divider"><span>已有账号？</span></div>
+			<a href="/login" class="btn btn-secondary btn-full">返回登录</a>
+		</div>
+	</div>
+</BaseLayout>
+
+<script>
+	let verifiedEmail = "";
+
+	async function sendVerificationCode() {
+		const emailInput = document.getElementById("verify-email") as HTMLInputElement;
+		const email = emailInput.value.trim();
+		const btn = document.getElementById("send-code-btn") as HTMLButtonElement;
+		const status = document.getElementById("code-status")!;
+
+		if (!email || !email.includes("@")) {
+			status.textContent = "请输入有效的邮箱地址";
+			status.style.color = "var(--accent)";
+			return;
+		}
+
+		btn.disabled = true;
+		btn.textContent = "发送中...";
+		status.textContent = "";
+
+		try {
+			const resp = await fetch("/api/auth/send-code", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email }),
+			});
+			const data = await resp.json() as { success?: boolean; error?: string };
+
+			if (data.success) {
+				status.textContent = "验证码已发送至您的邮箱，请查收（有效期10分钟）";
+				status.style.color = "var(--green)";
+				// Countdown
+				let countdown = 60;
+				const interval = setInterval(() => {
+					btn.textContent = `${countdown}s 后重试`;
+					countdown--;
+					if (countdown < 0) {
+						clearInterval(interval);
+						btn.disabled = false;
+						btn.textContent = "重新获取";
+					}
+				}, 1000);
+			} else {
+				status.textContent = data.error || "发送失败，请稍后重试";
+				status.style.color = "var(--accent)";
+				btn.disabled = false;
+				btn.textContent = "获取验证码";
+			}
+		} catch {
+			status.textContent = "网络错误，请稍后重试";
+			status.style.color = "var(--accent)";
+			btn.disabled = false;
+			btn.textContent = "获取验证码";
+		}
+	}
+
+	async function verifyAndNext() {
+		const email = (document.getElementById("verify-email") as HTMLInputElement).value.trim();
+		const code = (document.getElementById("verify-code") as HTMLInputElement).value.trim();
+		const status = document.getElementById("code-status")!;
+
+		if (!email || !code) {
+			status.textContent = "请填写邮箱和验证码";
+			status.style.color = "var(--accent)";
+			return;
+		}
+
+		try {
+			const resp = await fetch("/api/auth/verify-code", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email, code }),
+			});
+			const data = await resp.json() as { valid?: boolean; error?: string };
+
+			if (data.valid) {
+				verifiedEmail = email;
+				(document.getElementById("form-email") as HTMLInputElement).value = email;
+				(document.getElementById("form-code") as HTMLInputElement).value = code;
+				(document.getElementById("step1") as HTMLElement).style.display = "none";
+				(document.getElementById("step2") as HTMLElement).style.display = "block";
+			} else {
+				status.textContent = "验证码错误或已过期，请重新获取";
+				status.style.color = "var(--accent)";
+			}
+		} catch {
+			status.textContent = "验证失败，请重试";
+			status.style.color = "var(--accent)";
+		}
+	}
+
+	function setRole(role: string) {
+		document.querySelectorAll(".role-tab").forEach((t) => t.classList.remove("active"));
+		document.getElementById(`role-${role}`)?.classList.add("active");
+		(document.getElementById("role-input") as HTMLInputElement).value = role;
+		const jGroup = document.getElementById("journal-select-group")!;
+		jGroup.style.display = role !== "author" ? "block" : "none";
+	}
+</script>

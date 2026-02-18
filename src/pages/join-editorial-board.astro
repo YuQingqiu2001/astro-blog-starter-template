@@ -1,0 +1,174 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { journals } from "../data/journals";
+
+const success = new URL(Astro.request.url).searchParams.get("success");
+const error = new URL(Astro.request.url).searchParams.get("error");
+---
+
+<BaseLayout title="加入编委会 - 玄学前沿期刊群">
+	<div class="featured-section" style="padding: 2.5rem 0;">
+		<div class="container">
+			<h1 style="color: #fff; margin-bottom: 0.5rem;">申请加入编委会</h1>
+			<p style="color: rgba(255,255,255,0.65); max-width: 600px;">
+				玄学前沿期刊群诚邀各领域专家学者加入编委会，共同推动玄学研究的繁荣发展。
+				您的申请将由现有编辑审核，通过后将正式成为编委会成员。
+			</p>
+		</div>
+	</div>
+
+	<div class="page-content">
+		<div class="container" style="max-width: 680px;">
+			{success && (
+				<div class="alert alert-success">
+					您的申请已成功提交！编委会将在收到申请后7个工作日内进行审核，并通过邮件通知您结果。
+				</div>
+			)}
+
+			{error && (
+				<div class="alert alert-error">
+					{error === "missing_fields" ? "请填写所有必填字段。" :
+					 error === "invalid_email" ? "请输入有效的邮箱地址。" : error}
+				</div>
+			)}
+
+			<div class="card">
+				<div class="card-header">
+					<h2 style="font-size: 1.1rem;">申请表</h2>
+				</div>
+				<div class="card-body">
+					<form action="/api/board/apply" method="post" enctype="multipart/form-data">
+						<div class="grid-2">
+							<div class="form-group">
+								<label class="form-label" for="name">姓名 <span>*</span></label>
+								<input type="text" id="name" name="name" class="form-input" required placeholder="真实姓名" />
+							</div>
+							<div class="form-group">
+								<label class="form-label" for="email">邮箱地址 <span>*</span></label>
+								<input type="email" id="email" name="email" class="form-input" required placeholder="your@email.com" />
+							</div>
+						</div>
+
+						<div class="form-group">
+							<label class="form-label" for="affiliation">所属机构 <span>*</span></label>
+							<input
+								type="text"
+								id="affiliation"
+								name="affiliation"
+								class="form-input"
+								required
+								placeholder="大学/研究所/公司名称"
+							/>
+						</div>
+
+						<div class="grid-2">
+							<div class="form-group">
+								<label class="form-label" for="journal-id">申请期刊 <span>*</span></label>
+								<select id="journal-id" name="journal_id" class="form-select" required>
+									<option value="">请选择期刊...</option>
+									{journals.map((j) => (
+										<option value={j.id}>{j.name}</option>
+									))}
+								</select>
+							</div>
+							<div class="form-group">
+								<label class="form-label" for="position">申请职位</label>
+								<input
+									type="text"
+									id="position"
+									name="position"
+									class="form-input"
+									placeholder="如：编委、副主编等"
+								/>
+							</div>
+						</div>
+
+						<div class="form-group">
+							<label class="form-label" for="expertise">研究领域 <span>*</span></label>
+							<input
+								type="text"
+								id="expertise"
+								name="expertise"
+								class="form-input"
+								required
+								placeholder="例如：量子玄学、应用废话学、无用科学..."
+							/>
+						</div>
+
+						<div class="form-group">
+							<label class="form-label" for="bio">个人简介 <span>*</span></label>
+							<textarea
+								id="bio"
+								name="bio"
+								class="form-textarea"
+								required
+								rows="6"
+								placeholder="请介绍您的学术背景、研究经历和为何希望加入本期刊编委会（不少于100字）..."
+							></textarea>
+						</div>
+
+						<div class="form-group">
+							<label class="form-label" for="cv">个人简历 (PDF)</label>
+							<div class="upload-area" onclick="document.getElementById('cv').click()">
+								<p>点击上传简历 PDF（可选）</p>
+								<p class="text-xs text-muted" style="margin-top: 0.5rem;">支持 PDF 格式，最大 10MB</p>
+							</div>
+							<input
+								type="file"
+								id="cv"
+								name="cv"
+								accept=".pdf"
+								style="display: none;"
+								onchange="updateFileName(this)"
+							/>
+							<p class="form-help" id="cv-filename"></p>
+						</div>
+
+						<div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+							<a href="/" class="btn btn-secondary">取消</a>
+							<button type="submit" class="btn btn-primary btn-lg">提交申请</button>
+						</div>
+					</form>
+				</div>
+			</div>
+
+			<!-- Info section -->
+			<div class="card" style="margin-top: 1.5rem;">
+				<div class="card-header">
+					<h3 style="font-size: 1rem;">编委会职责与权益</h3>
+				</div>
+				<div class="card-body">
+					<div class="grid-2">
+						<div>
+							<h4 style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--primary);">职责</h4>
+							<ul style="list-style: disc; padding-left: 1.25rem; font-size: 0.875rem; color: var(--text-secondary);">
+								<li style="margin-bottom: 0.4rem;">参与稿件的同行评审过程</li>
+								<li style="margin-bottom: 0.4rem;">协助编辑做出录用/拒稿决定</li>
+								<li style="margin-bottom: 0.4rem;">为期刊发展提供学术建议</li>
+								<li>参与年度编委会议</li>
+							</ul>
+						</div>
+						<div>
+							<h4 style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--green);">权益</h4>
+							<ul style="list-style: disc; padding-left: 1.25rem; font-size: 0.875rem; color: var(--text-secondary);">
+								<li style="margin-bottom: 0.4rem;">在期刊网站上展示个人信息</li>
+								<li style="margin-bottom: 0.4rem;">获得"编委"头衔证书</li>
+								<li style="margin-bottom: 0.4rem;">投稿享有快速通道</li>
+								<li>年度编委感谢信一封</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</BaseLayout>
+
+<script>
+	function updateFileName(input: HTMLInputElement) {
+		const filename = document.getElementById("cv-filename")!;
+		if (input.files && input.files[0]) {
+			filename.textContent = `已选择：${input.files[0].name}`;
+		}
+	}
+</script>

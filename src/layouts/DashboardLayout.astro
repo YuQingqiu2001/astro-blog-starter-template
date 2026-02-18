@@ -1,0 +1,84 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+
+interface Props {
+	title?: string;
+	activeNav?: string;
+}
+
+const { title = "工作台", activeNav = "" } = Astro.props;
+const user = Astro.locals.user;
+
+if (!user) {
+	return Astro.redirect("/login");
+}
+
+const roleLabels: Record<string, string> = {
+	author: "作者",
+	editor: "编辑",
+	reviewer: "审稿人",
+};
+
+const authorNav = [
+	{ href: "/author", label: "我的稿件", icon: "📄" },
+	{ href: "/author/submit", label: "投递新稿件", icon: "✏️" },
+	{ href: "/author/profile", label: "个人资料", icon: "👤" },
+];
+
+const editorNav = [
+	{ href: "/editor", label: "稿件总览", icon: "📋" },
+	{ href: "/editor/board", label: "编委管理", icon: "👥" },
+	{ href: "/editor/reviewers", label: "审稿人管理", icon: "🔍" },
+	{ href: "/editor/profile", label: "个人资料", icon: "👤" },
+];
+
+const reviewerNav = [
+	{ href: "/reviewer", label: "待审稿件", icon: "📝" },
+	{ href: "/reviewer/history", label: "审稿历史", icon: "📚" },
+	{ href: "/reviewer/profile", label: "个人资料", icon: "👤" },
+];
+
+const navItems =
+	user.role === "author"
+		? authorNav
+		: user.role === "editor"
+			? editorNav
+			: reviewerNav;
+---
+
+<BaseLayout title={`${title} - 玄学前沿期刊群`}>
+	<div class="dashboard-layout">
+		<aside class="dashboard-sidebar">
+			<div class="sidebar-user">
+				<div class="sidebar-user-name">{user.name}</div>
+				<div class="sidebar-user-role">
+					{roleLabels[user.role] || user.role}
+				</div>
+			</div>
+
+			<nav>
+				{navItems.map((item) => (
+					<a
+						href={item.href}
+						class={`sidebar-nav-item${activeNav === item.href ? " active" : ""}`}
+					>
+						<span>{item.icon}</span>
+						{item.label}
+					</a>
+				))}
+
+				<div class="sidebar-nav-section">账户</div>
+				<a href="/" class="sidebar-nav-item">
+					<span>🏠</span>返回首页
+				</a>
+				<a href="/api/auth/logout" class="sidebar-nav-item">
+					<span>🚪</span>退出登录
+				</a>
+			</nav>
+		</aside>
+
+		<div class="dashboard-main">
+			<slot />
+		</div>
+	</div>
+</BaseLayout>

@@ -10,5 +10,29 @@
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "journal-db",
+			"database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "MANUSCRIPTS_BUCKET",
+			"bucket_name": "journal-manuscripts"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "SESSIONS_KV",
+			"id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+		}
+	],
+	"vars": {
+		"EMAIL_FROM": "noreply@example.com",
+		"SITE_NAME": "玄学前沿期刊群",
+		"SITE_URL": "https://example.com"
+	}
 }

@@ -1,0 +1,218 @@
+---
+import DashboardLayout from "../../../layouts/DashboardLayout.astro";
+
+const user = Astro.locals.user!;
+const env = Astro.locals.runtime?.env;
+const id = parseInt(Astro.params.id!);
+const action = new URL(Astro.request.url).searchParams.get("action");
+
+let manuscript: any = null;
+let reviews: any[] = [];
+let decisions: any[] = [];
+let revisions: any[] = [];
+
+try {
+	if (env?.DB) {
+		const mResult = await env.DB.prepare(`
+			SELECT m.*, j.name as journal_name
+			FROM manuscripts m
+			JOIN journals j ON m.journal_id = j.id
+			WHERE m.id = ? AND m.submitter_id = ?
+		`).bind(id, user.id).first();
+		manuscript = mResult;
+
+		if (manuscript) {
+			const rResult = await env.DB.prepare(`
+				SELECT r.review_r2_key, r.recommendation, r.comments, r.submitted_at
+				FROM reviews r
+				WHERE r.manuscript_id = ? AND r.status = 'submitted'
+			`).bind(id).all();
+			reviews = rResult.results as any[];
+
+			const dResult = await env.DB.prepare(`
+				SELECT * FROM editorial_decisions WHERE manuscript_id = ? ORDER BY created_at DESC
+			`).bind(id).all();
+			decisions = dResult.results as any[];
+
+			const revResult = await env.DB.prepare(`
+				SELECT * FROM manuscript_revisions WHERE manuscript_id = ? ORDER BY version DESC
+			`).bind(id).all();
+			revisions = revResult.results as any[];
+		}
+	}
+} catch (e) {
+	// DB not available
+}
+
+if (!manuscript && env?.DB) {
+	return Astro.redirect("/author");
+}
+
+const statusLabel: Record<string, string> = {
+	submitted: "已提交，等待编辑处理",
+	under_review: "审稿中",
+	revision_requested: "编辑要求修改",
+	resubmitted: "已提交修改稿",
+	accepted: "恭喜！稿件已接受",
+	rejected: "稿件已拒稿",
+	published: "稿件已正式发表",
+};
+
+const recommendationLabel: Record<string, string> = {
+	accept: "接受",
+	minor_revision: "小修",
+	major_revision: "大修",
+	reject: "拒稿",
+};
+
+// Fallback for demo
+if (!manuscript) {
+	manuscript = {
+		id,
+		title: "示例稿件：水的湿润性研究",
+		abstract: "本研究系统地研究了水的湿润特性...",
+		authors: "张伟, 李明",
+		keywords: "水, 湿润",
+		journal_name: "玄学前沿",
+		status: "revision_requested",
+		created_at: new Date().toISOString(),
+		updated_at: new Date().toISOString(),
+		editor_comment: "审稿人对方法部分提出了一些建议，请参考审稿意见进行修改。",
+	};
+}
+---
+
+<DashboardLayout title={`稿件详情`} activeNav="/author">
+	<div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+		<a href="/author" class="btn btn-sm btn-secondary">← 返回</a>
+		<h1 class="dashboard-page-title" style="margin-bottom: 0;">稿件详情</h1>
+	</div>
+
+	<!-- Manuscript Info -->
+	<div class="card" style="margin-bottom: 1.25rem;">
+		<div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+			<h2 style="font-size: 1rem;">基本信息</h2>
+			<span class={`badge badge-${manuscript.status?.replace(/_/g, "-") || "submitted"}`}>
+				{statusLabel[manuscript.status] || manuscript.status}
+			</span>
+		</div>
+		<div class="card-body">
+			<h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">{manuscript.title}</h3>
+			<p class="text-muted text-sm" style="margin-bottom: 0.75rem;">
+				作者：{manuscript.authors}
+			</p>
+			<p class="text-muted text-sm" style="margin-bottom: 0.75rem;">
+				期刊：{manuscript.journal_name} ·
+				投递日期：{new Date(manuscript.created_at).toLocaleDateString("zh-CN")}
+			</p>
+			{manuscript.keywords && (
+				<p class="text-sm" style="margin-bottom: 0.75rem;">
+					关键词：<span class="text-muted">{manuscript.keywords}</span>
+				</p>
+			)}
+			{manuscript.abstract && (
+				<div style="background: var(--bg-sidebar); padding: 1rem; border-radius: var(--radius-sm); margin-top: 0.75rem;">
+					<p class="text-sm text-muted" style="font-style: italic;">{manuscript.abstract}</p>
+				</div>
+			)}
+		</div>
+	</div>
+
+	{/* Editor comments */}
+	{manuscript.editor_comment && (
+		<div class="card" style="margin-bottom: 1.25rem; border-left: 4px solid var(--orange);">
+			<div class="card-body">
+				<h3 style="font-size: 0.9rem; color: var(--orange); margin-bottom: 0.5rem;">📨 编辑意见</h3>
+				<p class="text-sm">{manuscript.editor_comment}</p>
+			</div>
+		</div>
+	)}
+
+	{/* Review opinions (available after decision) */}
+	{reviews.length > 0 && (
+		<div class="card" style="margin-bottom: 1.25rem;">
+			<div class="card-header">
+				<h3 style="font-size: 1rem;">审稿意见</h3>
+			</div>
+			<div class="card-body">
+				{reviews.map((review, i) => (
+					<div style={`padding: 1rem 0; ${i > 0 ? "border-top: 1px solid var(--border);" : ""}`}>
+						<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+							<span class="text-sm font-bold">审稿人 {String.fromCharCode(65 + i)}</span>
+							{review.recommendation && (
+								<span class="badge badge-under-review">
+									建议：{recommendationLabel[review.recommendation] || review.recommendation}
+								</span>
+							)}
+						</div>
+						{review.comments && <p class="text-sm text-muted">{review.comments}</p>}
+						{review.review_r2_key && (
+							<a
+								href={`/api/download/${encodeURIComponent(review.review_r2_key)}`}
+								class="btn btn-sm btn-secondary"
+								style="margin-top: 0.5rem;"
+							>
+								下载详细审稿意见
+							</a>
+						)}
+					</div>
+				))}
+			</div>
+		</div>
+	)}
+
+	{/* Revision history */}
+	{revisions.length > 0 && (
+		<div class="card" style="margin-bottom: 1.25rem;">
+			<div class="card-header">
+				<h3 style="font-size: 1rem;">修改历史</h3>
+			</div>
+			<div class="card-body">
+				{revisions.map((rev) => (
+					<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+						<span class="text-sm">第 {rev.version} 版修改稿</span>
+						<div style="display: flex; gap: 0.5rem; align-items: center;">
+							<span class="text-xs text-muted">{new Date(rev.created_at).toLocaleDateString("zh-CN")}</span>
+							<a href={`/api/download/${encodeURIComponent(rev.r2_key)}`} class="btn btn-sm btn-secondary">
+								下载
+							</a>
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	)}
+
+	{/* Revise action */}
+	{(manuscript.status === "revision_requested") && (
+		<div class="card" style="border-color: var(--orange);">
+			<div class="card-header" style="background: #fff3e0;">
+				<h3 style="font-size: 1rem; color: var(--orange);">📝 提交修改稿</h3>
+			</div>
+			<div class="card-body">
+				<p class="text-sm text-muted" style="margin-bottom: 1.25rem;">
+					请根据审稿意见修改您的稿件，并上传修改稿和回应信（逐一回应每条审稿意见）。
+				</p>
+				<form action={`/api/manuscripts/${id}/revise`} method="post" enctype="multipart/form-data">
+					<div class="form-group">
+						<label class="form-label">修改稿 (PDF) <span>*</span></label>
+						<div class="upload-area" onclick="document.getElementById('revised').click()">
+							<p>上传修改后的稿件</p>
+						</div>
+						<input type="file" id="revised" name="manuscript" accept=".pdf" required style="display: none;" />
+					</div>
+					<div class="form-group">
+						<label class="form-label">回应信（回应审稿意见）</label>
+						<textarea
+							name="response_letter"
+							class="form-textarea"
+							rows="6"
+							placeholder="逐一回应每位审稿人的意见，说明如何修改或为何不同意某些建议..."
+						></textarea>
+					</div>
+					<button type="submit" class="btn btn-warning">提交修改稿</button>
+				</form>
+			</div>
+		</div>
+	)}
+</DashboardLayout>
