@@ -16,7 +16,13 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 					{error === "email_taken" ? "This email is already registered. Please login." :
 					 error === "code_invalid" ? "Verification code is invalid or expired. Please request a new one." :
 					 error === "weak_password" ? "Password too short. Please use at least 8 characters." :
-					 error === "missing_fields" ? "Please fill in all required fields." : error}
+					 error === "missing_fields" ? "Please fill in all required fields." :
+				 error === "missing_journal" ? "Editor/reviewer account must select an associated journal." :
+				 error === "password_mismatch" ? "Passwords do not match." :
+				 error === "invalid_role" ? "Invalid account role." :
+				 error === "invalid_input" ? "Input is too long or invalid." :
+				 error === "service_unavailable" ? "Service temporarily unavailable. Please try again later." :
+				 error === "server_error" ? "Server error. Please try again later." : error}
 				</div>
 			)}
 
@@ -270,7 +276,13 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 		document.getElementById(`role-${role}`)?.classList.add("active");
 		(document.getElementById("role-input") as HTMLInputElement).value = role;
 		const jGroup = document.getElementById("journal-select-group")!;
-		jGroup.style.display = role !== "author" ? "block" : "none";
+		const journalSelect = document.getElementById("journal-id") as HTMLSelectElement;
+		const requireJournal = role !== "author";
+		jGroup.style.display = requireJournal ? "block" : "none";
+		journalSelect.required = requireJournal;
+		if (!requireJournal) {
+			journalSelect.value = "";
+		}
 	}
 
 	function checkPasswordStrength(password: string) {

@@ -46,16 +46,16 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
 		`).bind(user.id, comments, id).run();
 
 		// Send notification email
-		const siteUrl = env.SITE_URL || "https://example.com";
+		const siteUrl = env.SITE_URL || "https://rubbishpublishing.org";
 		const siteName = env.SITE_NAME || "玄学前沿期刊群";
 		await sendEmail({
 			to: manuscript.submitter_email,
 			toName: manuscript.submitter_name,
-			from: env.EMAIL_FROM || "noreply@example.com",
+			from: env.EMAIL_FROM || "noreply@rubbishpublishing.org",
 			fromName: siteName,
 			subject: `【${siteName}】稿件处理结果通知`,
 			html: decisionEmailHtml(manuscript.title, "reject", comments, siteName, siteUrl),
-		});
+		}, env.RESEND_API_KEY);
 
 		return redirect(`/editor/manuscript/${id}?success=已拒稿并通知作者`);
 	} catch (err) {

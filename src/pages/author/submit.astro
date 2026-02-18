@@ -19,7 +19,8 @@ const success = new URL(Astro.request.url).searchParams.get("success");
 		<div class="alert alert-error">
 			{error === "missing_fields" ? "请填写所有必填字段。" :
 			 error === "file_too_large" ? "文件过大，请上传不超过50MB的PDF文件。" :
-			 error === "invalid_file" ? "请上传PDF格式的稿件文件。" : error}
+			 error === "invalid_file" ? "请上传PDF格式的稿件文件。" :
+			 error === "invalid_journal" ? "请选择有效的期刊。" : error}
 		</div>
 	)}
 

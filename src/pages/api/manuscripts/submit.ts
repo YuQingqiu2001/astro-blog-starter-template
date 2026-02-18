@@ -24,27 +24,35 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	const abstract = (formData.get("abstract") as string || "").trim();
 	const keywords = (formData.get("keywords") as string || "").trim();
 	const journalIdStr = formData.get("journal_id") as string || "";
-	const journalId = journalIdStr ? parseInt(journalIdStr) : 0;
+	const journalId = journalIdStr ? Number.parseInt(journalIdStr, 10) : 0;
 	const manuscriptFile = formData.get("manuscript") as File | null;
 
 	if (!title || !authors || !abstract || !journalId || !manuscriptFile) {
 		return redirect("/author/submit?error=missing_fields");
 	}
 
+	if (title.length > 300 || authors.length > 500 || abstract.length > 5000 || keywords.length > 300) {
+		return redirect("/author/submit?error=字段内容过长");
+	}
+
 	if (manuscriptFile.size > 50 * 1024 * 1024) {
 		return redirect("/author/submit?error=file_too_large");
 	}
 
-	if (!manuscriptFile.name.toLowerCase().endsWith(".pdf")) {
+	const fileName = manuscriptFile.name.toLowerCase();
+	if (!fileName.endsWith(".pdf") || manuscriptFile.type && manuscriptFile.type !== "application/pdf") {
 		return redirect("/author/submit?error=invalid_file");
 	}
 
 	try {
-		// Upload to R2
+		const journal = await env.DB.prepare("SELECT id FROM journals WHERE id = ?").bind(journalId).first();
+		if (!journal) {
+			return redirect("/author/submit?error=invalid_journal");
+		}
+
 		const r2Key = await generateR2Key(`manuscripts/${user.id}`, manuscriptFile.name);
 		await uploadFile(env.MANUSCRIPTS_BUCKET, r2Key, manuscriptFile, "application/pdf");
 
-		// Save to D1
 		await env.DB.prepare(`
 			INSERT INTO manuscripts (title, abstract, authors, keywords, journal_id, submitter_id, status, r2_key)
 			VALUES (?, ?, ?, ?, ?, ?, 'submitted', ?)

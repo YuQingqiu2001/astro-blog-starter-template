@@ -12,9 +12,8 @@
 	},
 	"upload_source_maps": true,
 	"vars": {
-		"EMAIL_FROM": "noreply@rubbish.pub",
+		"EMAIL_FROM": "noreply@rubbishpublishing.org",
 		"SITE_NAME": "Rubbish Publishing Group",
-		"SITE_URL": "https://example.com",
-		"RESEND_API_KEY": "re_PPYkUDCN_8kEbaqzHADx6Tdshp9Pwr31T"
+		"SITE_URL": "https://rubbishpublishing.org"
 	}
 }

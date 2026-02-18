@@ -13,6 +13,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		});
 	}
 
+	if (email.length > 254) {
+		return new Response(JSON.stringify({ success: false, error: "Invalid email address" }), {
+			status: 400,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
 	const env = locals.runtime?.env;
 	if (!env?.SESSIONS_KV) {
 		// Dev mode without KV: log the code and return success
@@ -50,13 +57,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	}
 
 	const apiKey = env.RESEND_API_KEY;
-	if (!apiKey) {
-		console.error("RESEND_API_KEY is not configured");
-		return new Response(JSON.stringify({ success: false, error: "Email service is not configured. Please contact the administrator." }), {
-			status: 503,
-			headers: { "Content-Type": "application/json" },
-		});
-	}
 
 	try {
 		const code = generateCode();
@@ -66,7 +66,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		await env.SESSIONS_KV.put(rateLimitKey, "1", { expirationTtl: 60 });
 
 		const siteName = env.SITE_NAME || "Rubbish Publishing Group";
-		const fromEmail = env.EMAIL_FROM || "noreply@example.com";
+		const fromEmail = env.EMAIL_FROM || "noreply@rubbishpublishing.org";
 
 		const sent = await sendEmail({
 			to: email,
