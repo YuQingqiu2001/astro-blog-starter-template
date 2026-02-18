@@ -4,171 +4,221 @@ import { journals } from "../data/journals";
 
 const success = new URL(Astro.request.url).searchParams.get("success");
 const error = new URL(Astro.request.url).searchParams.get("error");
+
+const env = Astro.locals.runtime?.env as Record<string, any> | undefined;
+const siteUrl = env?.SITE_URL || "https://rubbishpublishing.org";
+const orcidClientId = env?.ORCID_CLIENT_ID || "";
+const orcidScope = "/authenticate";
+const orcidRedirectUri = `${siteUrl}/orcid/callback`;
+const orcidAuthorizeBase = "https://orcid.org/oauth/authorize";
+
+const positionOptions = [
+	{ value: "Editorial Board Member", label: "Editorial Board Member" },
+	{ value: "Associate Editor", label: "Associate Editor" },
+	{ value: "Guest Editor", label: "Guest Editor" },
+	{ value: "Statistical Editor", label: "Statistical Editor" },
+	{ value: "Section Editor", label: "Section Editor" },
+];
 ---
 
-<BaseLayout title="加入编委会 - 玄学前沿期刊群">
+<BaseLayout title="Join Editorial Board - Rubbish Publishing Group">
 	<div class="featured-section" style="padding: 2.5rem 0;">
 		<div class="container">
-			<h1 style="color: #fff; margin-bottom: 0.5rem;">申请加入编委会</h1>
-			<p style="color: rgba(255,255,255,0.65); max-width: 600px;">
-				玄学前沿期刊群诚邀各领域专家学者加入编委会，共同推动玄学研究的繁荣发展。
-				您的申请将由现有编辑审核，通过后将正式成为编委会成员。
+			<h1 style="color: #fff; margin-bottom: 0.5rem;">Apply to Join the Editorial Board</h1>
+			<p style="color: rgba(255,255,255,0.65); max-width: 760px;">
+				Rubbish Publishing Group welcomes experienced researchers and editors to join our editorial board.
+				All applications are reviewed by existing editors, and qualified candidates will be invited by email.
 			</p>
 		</div>
 	</div>
 
 	<div class="page-content">
-		<div class="container" style="max-width: 680px;">
+		<div class="container" style="max-width: 760px;">
 			{success && (
 				<div class="alert alert-success">
-					您的申请已成功提交！编委会将在收到申请后7个工作日内进行审核，并通过邮件通知您结果。
+					Your application has been submitted successfully. We will review it within 7 business days.
 				</div>
 			)}
 
 			{error && (
 				<div class="alert alert-error">
-					{error === "missing_fields" ? "请填写所有必填字段。" :
-					 error === "invalid_email" ? "请输入有效的邮箱地址。" : error}
+					{error === "missing_fields" ? "Please fill in all required fields." :
+					 error === "invalid_email" ? "Please provide a valid email address." :
+					 error === "invalid_orcid" ? "Please provide a valid ORCID iD (0000-0000-0000-0000)." :
+					 error === "invalid_position" ? "Please choose a valid position from the list." :
+					 error === "invalid_journal" ? "Please choose a valid journal." :
+					 error === "invalid_file" ? "CV must be a PDF file no larger than 10MB." :
+					 error === "invalid_form" ? "Submitted form is invalid. Please try again." :
+					 error === "service_unavailable" ? "Service unavailable. Please try again later." :
+					 "Failed to submit. Please try again later."}
 				</div>
 			)}
 
 			<div class="card">
 				<div class="card-header">
-					<h2 style="font-size: 1.1rem;">申请表</h2>
+					<h2 style="font-size: 1.1rem;">Application Form</h2>
 				</div>
 				<div class="card-body">
-					<form action="/api/board/apply" method="post" enctype="multipart/form-data">
+					<form action="/api/board/apply" method="post" enctype="multipart/form-data" id="board-apply-form">
 						<div class="grid-2">
 							<div class="form-group">
-								<label class="form-label" for="name">姓名 <span>*</span></label>
-								<input type="text" id="name" name="name" class="form-input" required placeholder="真实姓名" />
+								<label class="form-label" for="name">Full Name <span>*</span></label>
+								<input type="text" id="name" name="name" class="form-input" required placeholder="Your legal name" />
 							</div>
 							<div class="form-group">
-								<label class="form-label" for="email">邮箱地址 <span>*</span></label>
-								<input type="email" id="email" name="email" class="form-input" required placeholder="your@email.com" />
+								<label class="form-label" for="email">Email Address <span>*</span></label>
+								<input type="email" id="email" name="email" class="form-input" required placeholder="name@institution.edu" />
 							</div>
 						</div>
 
 						<div class="form-group">
-							<label class="form-label" for="affiliation">所属机构 <span>*</span></label>
-							<input
-								type="text"
-								id="affiliation"
-								name="affiliation"
-								class="form-input"
-								required
-								placeholder="大学/研究所/公司名称"
-							/>
+							<label class="form-label" for="affiliation">Institution / Organization <span>*</span></label>
+							<input type="text" id="affiliation" name="affiliation" class="form-input" required placeholder="University / Institute / Company" />
+						</div>
+
+						<div class="form-group">
+							<label class="form-label" for="orcid">ORCID iD <span>*</span></label>
+							<div style="display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;">
+								<input type="text" id="orcid" name="orcid" class="form-input" style="flex:1; min-width: 240px;" required placeholder="0000-0000-0000-0000" />
+								<button type="button" class="btn btn-secondary" id="orcid-connect-btn">Connect ORCID</button>
+							</div>
+							<p class="form-help" style="margin-top:0.45rem;">
+								Need an ORCID iD? Visit
+								<a href="https://orcid.org" target="_blank" rel="noopener noreferrer">orcid.org</a>.
+							</p>
 						</div>
 
 						<div class="grid-2">
 							<div class="form-group">
-								<label class="form-label" for="journal-id">申请期刊 <span>*</span></label>
+								<label class="form-label" for="journal-id">Target Journal <span>*</span></label>
 								<select id="journal-id" name="journal_id" class="form-select" required>
-									<option value="">请选择期刊...</option>
+									<option value="">Select a journal...</option>
 									{journals.map((j) => (
 										<option value={j.id}>{j.name}</option>
 									))}
 								</select>
 							</div>
 							<div class="form-group">
-								<label class="form-label" for="position">申请职位</label>
-								<input
-									type="text"
-									id="position"
-									name="position"
-									class="form-input"
-									placeholder="如：编委、副主编等"
-								/>
+								<label class="form-label" for="position">Desired Position <span>*</span></label>
+								<select id="position" name="position" class="form-select" required>
+									<option value="">Select a position...</option>
+									{positionOptions.map((p) => (
+										<option value={p.value}>{p.label}</option>
+									))}
+								</select>
 							</div>
 						</div>
 
 						<div class="form-group">
-							<label class="form-label" for="expertise">研究领域 <span>*</span></label>
-							<input
-								type="text"
-								id="expertise"
-								name="expertise"
-								class="form-input"
-								required
-								placeholder="例如：量子玄学、应用废话学、无用科学..."
-							/>
+							<label class="form-label" for="expertise">Research Expertise <span>*</span></label>
+							<input type="text" id="expertise" name="expertise" class="form-input" required placeholder="e.g., epidemiology, AI for medicine, peer review methods" />
 						</div>
 
 						<div class="form-group">
-							<label class="form-label" for="bio">个人简介 <span>*</span></label>
-							<textarea
-								id="bio"
-								name="bio"
-								class="form-textarea"
-								required
-								rows="6"
-								placeholder="请介绍您的学术背景、研究经历和为何希望加入本期刊编委会（不少于100字）..."
-							></textarea>
+							<label class="form-label" for="bio">Short Bio <span>*</span></label>
+							<textarea id="bio" name="bio" class="form-textarea" required rows="6" placeholder="Describe your editorial experience, academic background, and why you want to join this board..."></textarea>
 						</div>
 
 						<div class="form-group">
-							<label class="form-label" for="cv">个人简历 (PDF)</label>
-							<div class="upload-area" onclick="document.getElementById('cv').click()">
-								<p>点击上传简历 PDF（可选）</p>
-								<p class="text-xs text-muted" style="margin-top: 0.5rem;">支持 PDF 格式，最大 10MB</p>
+							<label class="form-label" for="cv">Curriculum Vitae (PDF, optional)</label>
+							<div class="upload-area" id="cv-upload-area">
+								<p>Click to upload your CV PDF</p>
+								<p class="text-xs text-muted" style="margin-top: 0.5rem;">PDF only, max 10MB</p>
 							</div>
-							<input
-								type="file"
-								id="cv"
-								name="cv"
-								accept=".pdf"
-								style="display: none;"
-								onchange="updateFileName(this)"
-							/>
+							<input type="file" id="cv" name="cv" accept=".pdf" style="display: none;" />
 							<p class="form-help" id="cv-filename"></p>
 						</div>
 
 						<div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
-							<a href="/" class="btn btn-secondary">取消</a>
-							<button type="submit" class="btn btn-primary btn-lg">提交申请</button>
+							<a href="/" class="btn btn-secondary">Cancel</a>
+							<button type="submit" class="btn btn-primary btn-lg">Submit Application</button>
 						</div>
 					</form>
-				</div>
-			</div>
-
-			<!-- Info section -->
-			<div class="card" style="margin-top: 1.5rem;">
-				<div class="card-header">
-					<h3 style="font-size: 1rem;">编委会职责与权益</h3>
-				</div>
-				<div class="card-body">
-					<div class="grid-2">
-						<div>
-							<h4 style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--primary);">职责</h4>
-							<ul style="list-style: disc; padding-left: 1.25rem; font-size: 0.875rem; color: var(--text-secondary);">
-								<li style="margin-bottom: 0.4rem;">参与稿件的同行评审过程</li>
-								<li style="margin-bottom: 0.4rem;">协助编辑做出录用/拒稿决定</li>
-								<li style="margin-bottom: 0.4rem;">为期刊发展提供学术建议</li>
-								<li>参与年度编委会议</li>
-							</ul>
-						</div>
-						<div>
-							<h4 style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--green);">权益</h4>
-							<ul style="list-style: disc; padding-left: 1.25rem; font-size: 0.875rem; color: var(--text-secondary);">
-								<li style="margin-bottom: 0.4rem;">在期刊网站上展示个人信息</li>
-								<li style="margin-bottom: 0.4rem;">获得"编委"头衔证书</li>
-								<li style="margin-bottom: 0.4rem;">投稿享有快速通道</li>
-								<li>年度编委感谢信一封</li>
-							</ul>
-						</div>
-					</div>
 				</div>
 			</div>
 		</div>
 	</div>
 </BaseLayout>
 
-<script>
-	function updateFileName(input: HTMLInputElement) {
-		const filename = document.getElementById("cv-filename")!;
-		if (input.files && input.files[0]) {
-			filename.textContent = `已选择：${input.files[0].name}`;
-		}
+<script define:vars={{ orcidClientId, orcidScope, orcidRedirectUri, orcidAuthorizeBase }}>
+	const orcidPattern = /^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i;
+	const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+	function sanitizeOrcid(value) {
+		return value.replace(/^https?:\/\/orcid\.org\//i, "").trim();
 	}
+
+	const cvInput = document.getElementById("cv");
+	const cvUploadArea = document.getElementById("cv-upload-area");
+	const cvFilename = document.getElementById("cv-filename");
+	const form = document.getElementById("board-apply-form");
+	const orcidInput = document.getElementById("orcid");
+	const emailInput = document.getElementById("email");
+
+	cvUploadArea?.addEventListener("click", () => cvInput?.click());
+
+	cvInput?.addEventListener("change", (event) => {
+		const input = event.target;
+		if (input.files && input.files[0]) {
+			cvFilename.textContent = `Selected: ${input.files[0].name}`;
+		} else {
+			cvFilename.textContent = "";
+		}
+	});
+
+	form?.addEventListener("submit", (event) => {
+		const sanitizedOrcid = sanitizeOrcid(orcidInput.value);
+		orcidInput.value = sanitizedOrcid;
+		if (!orcidPattern.test(sanitizedOrcid)) {
+			event.preventDefault();
+			alert("Invalid ORCID format. Please use 0000-0000-0000-0000.");
+			return;
+		}
+
+		if (!emailPattern.test(emailInput.value.trim())) {
+			event.preventDefault();
+			alert("Please enter a valid email address.");
+			return;
+		}
+
+		if (cvInput.files && cvInput.files[0]) {
+			const file = cvInput.files[0];
+			if (!file.name.toLowerCase().endsWith(".pdf") || file.size > 10 * 1024 * 1024) {
+				event.preventDefault();
+				alert("CV must be a PDF file no larger than 10MB.");
+			}
+		}
+	});
+
+	document.getElementById("orcid-connect-btn")?.addEventListener("click", () => {
+		if (!orcidClientId) {
+			alert("ORCID client is not configured yet. Please enter ORCID manually.");
+			return;
+		}
+		const state = crypto.randomUUID();
+		sessionStorage.setItem("orcid_oauth_state", state);
+		const params = new URLSearchParams({
+			client_id: orcidClientId,
+			response_type: "code",
+			scope: orcidScope,
+			redirect_uri: orcidRedirectUri,
+			state,
+		});
+		const popup = window.open(`${orcidAuthorizeBase}?${params.toString()}`, "orcid_oauth", "width=620,height=780");
+		if (!popup) {
+			alert("Popup blocked. Please allow popups and try again.");
+		}
+	});
+
+	window.addEventListener("message", (event) => {
+		if (event.origin !== window.location.origin) return;
+		if (!event.data || event.data.type !== "orcid-oauth") return;
+		const expected = sessionStorage.getItem("orcid_oauth_state");
+		if (expected && event.data.state !== expected) return;
+		if (event.data.orcid) {
+			orcidInput.value = sanitizeOrcid(event.data.orcid);
+		} else if (event.data.error) {
+			alert("ORCID authorization was not completed. Please enter ORCID manually.");
+		}
+	});
 </script>

@@ -1,0 +1,35 @@
+---
+const requestUrl = new URL(Astro.request.url);
+const code = requestUrl.searchParams.get("code") || "";
+const state = requestUrl.searchParams.get("state") || "";
+const orcid = requestUrl.searchParams.get("orcid") || "";
+const error = requestUrl.searchParams.get("error") || "";
+const errorDescription = requestUrl.searchParams.get("error_description") || "";
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>ORCID Authorization</title>
+	</head>
+	<body>
+		<script define:vars={{ code, state, orcid, error, errorDescription }}>
+			const payload = {
+				type: "orcid-oauth",
+				state,
+				orcid,
+				code,
+				error,
+				errorDescription,
+			};
+
+			if (window.opener) {
+				window.opener.postMessage(payload, window.location.origin);
+			}
+			window.close();
+		</script>
+		<p>Authorization completed. You can close this window.</p>
+	</body>
+</html>

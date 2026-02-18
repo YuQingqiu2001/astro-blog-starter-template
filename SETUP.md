@@ -19,6 +19,7 @@ wrangler d1 execute journal-db --file=./migrations/002_seed_editorial_board.sql
 wrangler d1 execute journal-db --file=./migrations/003_fix_editorial_board.sql
 wrangler d1 execute journal-db --file=./migrations/004_auth_fallback_tables.sql
 wrangler d1 execute journal-db --file=./migrations/005_user_roles.sql
+wrangler d1 execute journal-db --file=./migrations/006_board_application_orcid.sql
 ```
 
 ### 2. 创建 R2 存储桶
@@ -54,7 +55,8 @@ wrangler kv namespace create SESSIONS_KV
   "vars": {
     "EMAIL_FROM": "noreply@rubbishpublishing.org",
     "SITE_NAME": "玄学前沿期刊群",
-    "SITE_URL": "https://rubbishpublishing.org"
+    "SITE_URL": "https://rubbishpublishing.org",
+    "ORCID_CLIENT_ID": "YOUR_ORCID_CLIENT_ID"
   }
 }
 ```

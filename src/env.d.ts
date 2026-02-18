@@ -11,6 +11,7 @@ interface Env {
 	SITE_NAME: string;
 	SITE_URL: string;
 	RESEND_API_KEY?: string;
+	ORCID_CLIENT_ID?: string;
 }
 
 type Runtime = import("@astrojs/cloudflare").Runtime<Env>;
