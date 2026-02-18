@@ -1,6 +1,17 @@
 ---
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
 const user = Astro.locals.user!;
+const env = Astro.locals.runtime?.env;
+
+let affiliation: string | null = null;
+let orcid: string | null = null;
+if (env?.DB) {
+	const row = await env.DB.prepare("SELECT affiliation, orcid FROM users WHERE id = ?").bind(user.id).first() as { affiliation: string | null; orcid: string | null } | null;
+	affiliation = row?.affiliation || null;
+	orcid = row?.orcid || null;
+}
+
+const orcidUrl = orcid ? (orcid.startsWith("http") ? orcid : `https://orcid.org/${orcid}`) : null;
 ---
 
 <DashboardLayout title="Profile" activeNav="/editor/profile">
@@ -10,6 +21,15 @@ const user = Astro.locals.user!;
 			<p><strong>Name:</strong> {user.name}</p>
 			<p><strong>Email:</strong> {user.email}</p>
 			<p><strong>Role:</strong> Editor</p>
+			{affiliation && <p><strong>Affiliation:</strong> {affiliation}</p>}
+			{orcidUrl && (
+				<p>
+					<strong>ORCID:</strong>
+					<a href={orcidUrl} target="_blank" rel="noopener noreferrer" style="margin-left: 0.4rem;">
+						{orcid}
+					</a>
+				</p>
+			)}
 		</div>
 	</div>
 </DashboardLayout>

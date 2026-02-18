@@ -1,9 +1,24 @@
 import type { APIRoute } from "astro";
-import { hashPassword, createSession, setSessionCookie } from "../../../lib/auth";
-import { createLocalUser, findLocalUserByEmail } from "../../../lib/local-auth";
+import { hashPassword, verifyPassword, createSession, setSessionCookie } from "../../../lib/auth";
+import {
+	createLocalUser,
+	findLocalUserByEmail,
+	addLocalRole,
+	hasLocalRole,
+	getLocalJournalIdForRole,
+} from "../../../lib/local-auth";
 import { getDb, getKv } from "../../../lib/runtime-env";
 
 const allowedRoles = ["author", "editor", "reviewer"] as const;
+
+function normalizeOrcid(orcidInput: string): string | null {
+	if (!orcidInput) return null;
+	const value = orcidInput.trim();
+	if (!value) return null;
+	const cleaned = value.replace(/^https?:\/\/orcid\.org\//i, "").trim();
+	if (!/^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i.test(cleaned)) return null;
+	return cleaned.toUpperCase();
+}
 
 export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	const formData = await request.formData();
@@ -13,6 +28,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	const password2 = formData.get("password2") as string || "";
 	const role = formData.get("role") as string || "author";
 	const affiliation = (formData.get("affiliation") as string || "").trim();
+	const orcid = normalizeOrcid((formData.get("orcid") as string || "").trim());
 	const journalIdStr = formData.get("journal_id") as string || "";
 	const journalId = journalIdStr ? Number.parseInt(journalIdStr, 10) : null;
 	const captchaExpected = (formData.get("captcha_expected") as string || "").trim();
@@ -20,6 +36,10 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 
 	if (!email || !name || !password || !captchaExpected || !captchaAnswer) {
 		return redirect("/register?error=missing_fields");
+	}
+
+	if ((formData.get("orcid") as string || "").trim() && !orcid) {
+		return redirect("/register?error=invalid_orcid");
 	}
 
 	if (captchaExpected !== captchaAnswer) {
@@ -45,49 +65,104 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	const env = locals.runtime?.env;
 	const db = getDb(env as any);
 	const kv = getKv(env as any);
+	const selectedRole = role as "author" | "editor" | "reviewer";
 
 	try {
 		const passwordHash = await hashPassword(password);
 		let userId: number;
+		let roleJournalId: number | null = journalId;
 
 		if (db) {
-			const existing = await db.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
-			if (existing) {
-				return redirect("/register?error=email_taken");
+			const existing = await db.prepare(
+				"SELECT id, password_hash, name, affiliation, orcid FROM users WHERE email = ?"
+			).bind(email).first() as {
+				id: number;
+				password_hash: string;
+				name: string;
+				affiliation: string | null;
+				orcid: string | null;
+			} | null;
+
+			if (!existing) {
+				const result = await db.prepare(`
+					INSERT INTO users (email, password_hash, name, role, journal_id, verified, affiliation, orcid)
+					VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+				`).bind(email, passwordHash, name, selectedRole, roleJournalId, affiliation || null, orcid).run();
+				userId = result.meta.last_row_id as number;
+			} else {
+				const valid = await verifyPassword(password, existing.password_hash);
+				if (!valid) {
+					return redirect("/register?error=email_taken");
+				}
+				userId = existing.id;
+				await db.prepare(`
+					UPDATE users
+					SET name = ?, affiliation = COALESCE(?, affiliation), orcid = COALESCE(?, orcid)
+					WHERE id = ?
+				`).bind(name, affiliation || null, orcid, userId).run();
 			}
 
-			const result = await db.prepare(`
-				INSERT INTO users (email, password_hash, name, role, journal_id, verified, affiliation)
-				VALUES (?, ?, ?, ?, ?, 1, ?)
-			`).bind(email, passwordHash, name, role, journalId, affiliation || null).run();
-			userId = result.meta.last_row_id as number;
+			await db.prepare(`
+				CREATE TABLE IF NOT EXISTS user_roles (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					user_id INTEGER NOT NULL,
+					email TEXT NOT NULL,
+					role TEXT NOT NULL CHECK(role IN ('author', 'editor', 'reviewer')),
+					journal_id INTEGER,
+					created_at TEXT DEFAULT (datetime('now')),
+					UNIQUE(user_id, role),
+					FOREIGN KEY(user_id) REFERENCES users(id)
+				)
+			`).run();
+
+			await db.prepare(`
+				INSERT OR IGNORE INTO user_roles (user_id, email, role, journal_id)
+				VALUES (?, ?, ?, ?)
+			`).bind(userId, email, selectedRole, roleJournalId).run();
+
+			const roleRow = await db.prepare(
+				"SELECT journal_id FROM user_roles WHERE user_id = ? AND role = ?"
+			).bind(userId, selectedRole).first() as { journal_id: number | null } | null;
+			if (roleRow) {
+				roleJournalId = roleRow.journal_id;
+			}
 		} else {
 			const existing = findLocalUserByEmail(email);
-			if (existing) {
-				return redirect("/register?error=email_taken");
+			if (!existing) {
+				userId = createLocalUser({
+					email,
+					passwordHash,
+					name,
+					role: selectedRole,
+					journalId: roleJournalId,
+					affiliation: affiliation || null,
+					orcid,
+				}).id;
+			} else {
+				const valid = await verifyPassword(password, existing.passwordHash);
+				if (!valid) {
+					return redirect("/register?error=email_taken");
+				}
+				userId = existing.id;
+				if (!hasLocalRole(email, selectedRole)) {
+					addLocalRole(email, selectedRole, roleJournalId);
+				}
+				roleJournalId = getLocalJournalIdForRole(email, selectedRole);
 			}
-			userId = createLocalUser({
-				email,
-				passwordHash,
-				name,
-				role: role as "author" | "editor" | "reviewer",
-				journalId,
-				affiliation: affiliation || null,
-			}).id;
 		}
 
 		const token = await createSession({ kv, db }, {
 			userId,
 			email,
 			name,
-			role: role as "author" | "editor" | "reviewer",
-			journalId,
+			role: selectedRole,
+			journalId: roleJournalId,
 		});
 
 		return new Response(null, {
 			status: 302,
 			headers: {
-				Location: `/${role}?welcome=1`,
+				Location: `/${selectedRole}?welcome=1`,
 				"Set-Cookie": setSessionCookie(token),
 			},
 		});
