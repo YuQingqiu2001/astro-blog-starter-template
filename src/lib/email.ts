@@ -1,9 +1,10 @@
-// Email sending via Resend (https://resend.com)
-// Set RESEND_API_KEY in your Cloudflare Worker environment variables
+// Email sending via Resend SDK (https://resend.com)
+// Requires RESEND_API_KEY environment variable in Cloudflare Workers
+
+import { Resend } from "resend";
 
 interface EmailOptions {
 	to: string;
-	toName?: string;
 	from: string;
 	fromName?: string;
 	subject: string;
@@ -12,34 +13,21 @@ interface EmailOptions {
 }
 
 export async function sendEmail(options: EmailOptions, apiKey: string): Promise<boolean> {
-	const payload = {
+	const resend = new Resend(apiKey);
+
+	const { error } = await resend.emails.send({
 		from: options.fromName ? `${options.fromName} <${options.from}>` : options.from,
 		to: [options.to],
 		subject: options.subject,
 		html: options.html,
 		...(options.text ? { text: options.text } : {}),
-	};
+	});
 
-	try {
-		const resp = await fetch("https://api.resend.com/emails", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"Authorization": `Bearer ${apiKey}`,
-			},
-			body: JSON.stringify(payload),
-		});
-
-		if (!resp.ok) {
-			const body = await resp.text();
-			console.error(`Resend API error ${resp.status}:`, body);
-			return false;
-		}
-		return true;
-	} catch (err) {
-		console.error("Failed to send email to", options.to, err);
+	if (error) {
+		console.error("Resend error:", error);
 		return false;
 	}
+	return true;
 }
 
 export function verificationEmailHtml(code: string, siteName: string): string {
@@ -63,7 +51,7 @@ export function verificationEmailHtml(code: string, siteName: string): string {
     <p style="color:#999; font-size:0.8rem;">This is an automated message from ${siteName}. Please do not reply to this email.</p>
   </div>
   <div style="background:#eee; padding:16px; text-align:center; font-size:12px; color:#999; border-radius:0 0 8px 8px;">
-    © ${new Date().getFullYear()} ${siteName} · Academic Publishing System
+    &copy; ${new Date().getFullYear()} ${siteName} &middot; Academic Publishing System
   </div>
 </body>
 </html>`;
@@ -93,7 +81,7 @@ export function decisionEmailHtml(
   </div>
   <div style="background:#ffffff; padding:36px; border:1px solid #ddd; border-top:none;">
     <h2 style="color:#1A2A4A; margin-top:0;">Manuscript Decision Notification</h2>
-    <p style="color:#444;">Your manuscript <strong>"${manuscriptTitle}"</strong> has been reviewed by our editorial team. The decision is as follows:</p>
+    <p style="color:#444;">Your manuscript <strong>&ldquo;${manuscriptTitle}&rdquo;</strong> has been reviewed by our editorial team. The decision is as follows:</p>
     <div style="background:${d.color}; color:#fff; font-size:20px; font-weight:bold; text-align:center; padding:18px; border-radius:8px; margin:24px 0;">
       ${d.label}
     </div>
@@ -115,7 +103,7 @@ export function decisionEmailHtml(
 	}
   </div>
   <div style="background:#eee; padding:16px; text-align:center; font-size:12px; color:#999; border-radius:0 0 8px 8px;">
-    © ${new Date().getFullYear()} ${siteName} · Academic Publishing System
+    &copy; ${new Date().getFullYear()} ${siteName} &middot; Academic Publishing System
   </div>
 </body>
 </html>`;

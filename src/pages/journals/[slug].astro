@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { journals, getJournalBySlug } from "../../data/journals";
+import { editorialBoard } from "../../data/editorial-board";
 
 const { slug } = Astro.params;
 const journal = getJournalBySlug(slug!);
@@ -40,70 +41,27 @@ try {
 	// Fallback to sample data
 }
 
-// Sample board members if none in DB
-const sampleBoard = [
-	{
-		id: 1,
-		name: "张明哲",
-		position: "主编",
-		is_editor_in_chief: 1,
-		affiliation: "玄学研究所",
-		bio: "长期致力于无用科学的推广与传播",
-	},
-	{
-		id: 2,
-		name: "李废话",
-		position: "副主编",
-		is_editor_in_chief: 0,
-		affiliation: "国立废话大学",
-		bio: "在理论废话领域有超过20年的研究经验",
-	},
-	{
-		id: 3,
-		name: "王荒谬",
-		position: "编委",
-		is_editor_in_chief: 0,
-		affiliation: "应用荒谬研究院",
-		bio: "荒谬学领域的先驱，发表过超过200篇无人引用的论文",
-	},
-	{
-		id: 4,
-		name: "陈玄学",
-		position: "编委",
-		is_editor_in_chief: 0,
-		affiliation: "玄学前沿学会",
-		bio: "专注于将量子力学与算命结合的跨学科研究",
-	},
-	{
-		id: 5,
-		name: "周显然",
-		position: "统计编委",
-		is_editor_in_chief: 0,
-		affiliation: "显而易见大学统计系",
-		bio: "用最复杂的统计方法证明最简单的结论",
-	},
-];
-
-const displayBoard = boardMembers.length > 0 ? boardMembers : sampleBoard;
+// Fallback to static editorial board data if DB is empty
+const displayBoard = boardMembers.length > 0 ? boardMembers : editorialBoard;
 
 // Sample articles for this journal if none in DB
 const sampleArticles = [
 	{
 		id: 1,
-		title: "水是湿的：一项系统综述与荟萃分析",
-		abstract: "本文对过去三十年来关于\u300c水是湿的\u300d这一假说的文献进行了全面系统综述。通过对4721篇相关文献的荟萃分析，以95%的置信区间证实了水在常温常压下确实具有湿润特性（p<0.001）。",
-		authors: "张伟, 李明, 王芳",
-		doi: "10.0000/FIM.2024.001",
+		title: "Water Is Wet: A Systematic Review and Meta-Analysis",
+		abstract: "We present a comprehensive systematic review of literature on the hypothesis that water is wet. Through meta-analysis of 4,721 papers, we confirm with 95% CI that water exhibits wetness at standard temperature and pressure (p<0.001).",
+		authors: "Zhang W., Li M., Wang F.",
+		doi: "10.0000/RUB.2024.001",
 		volume: 1,
 		issue: 1,
 		published_at: new Date(Date.now() - 30 * 86400000).toISOString(),
 	},
 	{
 		id: 2,
-		title: "论学术期刊审稿周期与投稿作者情绪崩溃之间的相关性",
-		abstract: "通过对7823份审稿拒信的文本分析，我们发现审稿周期每延长一个月，作者使用\u300c佛系\u300d一词的频率提升约34%（p<0.001）。",
-		authors: "钱不甘, 孙被拒",
-		doi: "10.0000/FIM.2024.002",
+		title: "Correlation Between Peer Review Turnaround Time and Author Emotional Collapse",
+		abstract: "Through text analysis of 7,823 rejection letters, we find that each additional month of review delay increases the frequency of resignation-related language by approximately 34% (p<0.001).",
+		authors: "Qian B., Sun R.",
+		doi: "10.0000/RUB.2024.002",
 		volume: 1,
 		issue: 1,
 		published_at: new Date(Date.now() - 20 * 86400000).toISOString(),
@@ -140,27 +98,27 @@ const displayArticles = articles.length > 0 ? articles : sampleArticles;
 							<span class="value">{journal.issn}</span>
 						</div>
 						<div class="meta-item">
-							<span class="label">影响因子</span>
+							<span class="label">Impact Factor</span>
 							<span class="value">{journal.impactFactor}</span>
 						</div>
 						<div class="meta-item">
-							<span class="label">领域</span>
+							<span class="label">Field</span>
 							<span class="value">{journal.field}</span>
 						</div>
 						{journal.isMain && (
 							<div class="meta-item">
-								<span class="label">期刊类型</span>
-								<span class="value" style="color: #ffcc80;">旗舰期刊</span>
+								<span class="label">Journal Type</span>
+								<span class="value" style="color: #ffcc80;">Flagship Journal</span>
 							</div>
 						)}
 					</div>
 					<p class="description">{journal.description}</p>
 					<div style="margin-top: 1.25rem; display: flex; gap: 0.75rem;">
 						<a href="/author/submit" class="btn btn-sm btn-danger">
-							投递稿件
+							Submit Manuscript
 						</a>
 						<a href="/join-editorial-board" class="btn btn-sm btn-secondary" style="border-color: rgba(255,255,255,0.3); color: #fff;">
-							加入编委会
+							Join Editorial Board
 						</a>
 					</div>
 				</div>
@@ -219,7 +177,7 @@ const displayArticles = articles.length > 0 ? articles : sampleArticles;
 										<p class="excerpt">{article.abstract}</p>
 										<div class="meta">
 											<span>
-												{new Date(article.published_at).toLocaleDateString("zh-CN", {
+												{new Date(article.published_at).toLocaleDateString("en-US", {
 													year: "numeric",
 													month: "long",
 													day: "numeric",
@@ -241,7 +199,7 @@ const displayArticles = articles.length > 0 ? articles : sampleArticles;
 												href={`/api/download/${encodeURIComponent(article.r2_key)}`}
 												class="btn btn-sm btn-primary"
 											>
-												下载 PDF
+												Download PDF
 											</a>
 										)}
 									</div>

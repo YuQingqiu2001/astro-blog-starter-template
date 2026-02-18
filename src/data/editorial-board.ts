@@ -1,0 +1,198 @@
+// Static editorial board data — 20 members with valid ORCIDs
+// Jinghua Gu is the primary Editor in Chief (display_order: 1)
+
+export interface BoardMember {
+	name: string;
+	email: string;
+	affiliation: string;
+	orcid: string;
+	position: "Editor in Chief" | "Associate Editor" | "Editorial Board Member";
+	is_editor_in_chief: 0 | 1;
+	display_order: number;
+}
+
+export const editorialBoard: BoardMember[] = [
+	// ── Editors in Chief ────────────────────────────────────────────────────
+	{
+		name: "Jinghua Gu",
+		email: "2040519464@qq.com",
+		affiliation: "Anhui Medical University",
+		orcid: "0009-0000-8691-1312",
+		position: "Editor in Chief",
+		is_editor_in_chief: 1,
+		display_order: 1,
+	},
+	{
+		name: "Chihaya Anon",
+		email: "shiyaostudio@163.com",
+		affiliation: "Royal Historical Society",
+		orcid: "0000-0002-7093-3506",
+		position: "Editor in Chief",
+		is_editor_in_chief: 1,
+		display_order: 10,
+	},
+	{
+		name: "Qing Pan",
+		email: "panqing@gt.cn",
+		affiliation: "Panjin Liaohe Oilfield Baoshihua Hospital",
+		orcid: "0009-0001-1253-6481",
+		position: "Editor in Chief",
+		is_editor_in_chief: 1,
+		display_order: 10,
+	},
+	{
+		name: "Yijing Li",
+		email: "326746191@qq.com",
+		affiliation: "North China University of Water Resources and Electric Power",
+		orcid: "0000-0003-3479-6193",
+		position: "Editor in Chief",
+		is_editor_in_chief: 1,
+		display_order: 10,
+	},
+	{
+		name: "Yuze Hao",
+		email: "dasce@outlook.com",
+		affiliation: "Inner Mongolia University",
+		orcid: "0000-0001-7878-4239",
+		position: "Editor in Chief",
+		is_editor_in_chief: 1,
+		display_order: 10,
+	},
+	{
+		name: "Jianhong Qi",
+		email: "2236205811@qq.com",
+		affiliation: "Shandong University",
+		orcid: "0000-0012-3698-1253",
+		position: "Editor in Chief",
+		is_editor_in_chief: 1,
+		display_order: 10,
+	},
+	{
+		name: "Wei Chen",
+		email: "470041595@qq.com",
+		affiliation: "School of Technology, Fuzhou Technology and Business University",
+		orcid: "0009-0005-2080-7711",
+		position: "Editor in Chief",
+		is_editor_in_chief: 1,
+		display_order: 10,
+	},
+	// ── Associate Editor ────────────────────────────────────────────────────
+	{
+		name: "Xinrui Bai",
+		email: "bxr15900638191@163.com",
+		affiliation: "Gansu Provincial People's Hospital",
+		orcid: "0009-0008-8577-4940",
+		position: "Associate Editor",
+		is_editor_in_chief: 0,
+		display_order: 20,
+	},
+	// ── Editorial Board Members ─────────────────────────────────────────────
+	{
+		name: "Jingqi Li",
+		email: "ljq2005012023@163.com",
+		affiliation: "Hebei Medical University",
+		orcid: "0009-0005-2915-2870",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+	{
+		name: "Zhen Ren",
+		email: "dylan214@126.com",
+		affiliation: "Dalian University of Technology",
+		orcid: "0009-0009-2492-7410",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+	{
+		name: "Pan Yingzhuo",
+		email: "pyz372203@126.com",
+		affiliation: "JiLin University of Finance and Economics",
+		orcid: "0009-0005-3319-0239",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+	{
+		name: "Cai Haohong",
+		email: "caihaohong@foxmail.com",
+		affiliation: "Shandong University",
+		orcid: "0000-0002-7402-9426",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+	{
+		name: "MesaYao",
+		email: "yaoyuan9921@mails.jlu.edu.cn",
+		affiliation: "Jilin University",
+		orcid: "0009-0000-6987-8864",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+	{
+		name: "Xinhe Lu",
+		email: "luxh@hust.edu.cn",
+		affiliation: "Huazhong University of Science and Technology",
+		orcid: "0009-0008-2912-0109",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+	{
+		name: "He Chunlin",
+		email: "chunlin.he@connect.polyu.hk",
+		affiliation: "Hong Kong Polytechnic University",
+		orcid: "0000-0001-8171-1012",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+	{
+		name: "Changcan Feng",
+		email: "fcc18159959869@163.com",
+		affiliation: "Xiamen University",
+		orcid: "0009-0000-1640-1579",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+	{
+		name: "Zhihao Xu",
+		email: "zhihao_xu_a@163.com",
+		affiliation: "Anhui Medical University",
+		orcid: "0000-0003-1312-8428",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+	{
+		name: "Zhicheng Lin",
+		email: "linzhichengl@163.com",
+		affiliation: "Sichuan University",
+		orcid: "0009-0000-2956-6217",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+	{
+		name: "Wenxia",
+		email: "yanwx59304@163.com",
+		affiliation: "Rubbish University",
+		orcid: "0009-0003-5329-4209",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+	{
+		name: "Jiajun Gui",
+		email: "a1074646773@gmail.com",
+		affiliation: "Fujian Medical University",
+		orcid: "0009-0008-2328-4030",
+		position: "Editorial Board Member",
+		is_editor_in_chief: 0,
+		display_order: 50,
+	},
+];

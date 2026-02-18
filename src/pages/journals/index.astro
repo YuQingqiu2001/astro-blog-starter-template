@@ -33,15 +33,15 @@ const filteredJournals = q
 					name="q"
 					class="search-input"
 					value={q}
-					placeholder="搜索期刊名称、领域或ISSN..."
+					placeholder="Search journal name, field, or ISSN..."
 				/>
-				<button type="submit" class="search-btn">搜索</button>
+				<button type="submit" class="search-btn">Search</button>
 			</form>
 
 			{q && (
 				<p class="text-muted" style="margin-bottom: 1.5rem;">
-					搜索 "<strong>{q}</strong>" 的结果：找到 {filteredJournals.length} 本期刊
-					<a href="/journals" style="margin-left: 0.5rem; font-size: 0.85rem;">清除</a>
+					Search results for "<strong>{q}</strong>": {filteredJournals.length} journals found
+					<a href="/journals" style="margin-left: 0.5rem; font-size: 0.85rem;">Clear</a>
 				</p>
 			)}
 
