@@ -16,6 +16,7 @@ if (token) {
 
 const error = new URL(Astro.request.url).searchParams.get("error");
 const redirect = new URL(Astro.request.url).searchParams.get("redirect") || "";
+const reset = new URL(Astro.request.url).searchParams.get("reset");
 ---
 
 <BaseLayout title="Login - Rubbish Publishing Group">
@@ -23,6 +24,10 @@ const redirect = new URL(Astro.request.url).searchParams.get("redirect") || "";
 		<div class="auth-card">
 			<h1>Sign In</h1>
 			<p class="auth-subtitle">Rubbish Publishing Group — Manuscript Submission & Review Platform</p>
+
+			{reset && (
+				<div class="alert alert-success">Password updated successfully. Please sign in with your new password.</div>
+			)}
 
 			{error && (
 				<div class="alert alert-error">
@@ -66,7 +71,7 @@ const redirect = new URL(Astro.request.url).searchParams.get("redirect") || "";
 			</form>
 
 			<p style="text-align:center; margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">
-				Forgot password? Please contact administrator or editorial office to reset your password.
+				Forgot your password? <a href="/forgot-password">Reset it by email</a>.
 			</p>
 
 			<div class="auth-divider"><span>Don't have an account?</span></div>

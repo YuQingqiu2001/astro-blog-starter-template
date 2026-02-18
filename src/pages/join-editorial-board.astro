@@ -73,7 +73,6 @@ const positionOptions = [
 							<label class="form-label" for="orcid">ORCID iD <span>*</span></label>
 							<div style="display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;">
 								<input type="text" id="orcid" name="orcid" class="form-input" style="flex:1; min-width: 240px;" required placeholder="0000-0000-0000-0000" />
-								<button type="button" class="btn btn-secondary" id="orcid-connect-btn">Connect ORCID</button>
 							</div>
 							<p class="form-help" style="margin-top:0.45rem;">
 								Need an ORCID iD? Visit
@@ -183,26 +182,5 @@ const positionOptions = [
 		}
 	});
 
-	document.getElementById("orcid-connect-btn")?.addEventListener("click", () => {
-		const state = crypto.randomUUID();
-		sessionStorage.setItem("orcid_oauth_state", state);
-		const startUrl = `/api/orcid/start?state=${encodeURIComponent(state)}`;
-		const popup = window.open(startUrl, "orcid_oauth", "width=620,height=780");
-		if (!popup) {
-			alert("Popup blocked. Please allow popups and try again.");
-		}
-	});
 
-	window.addEventListener("message", (event) => {
-		if (event.origin !== window.location.origin) return;
-		if (!event.data || event.data.type !== "orcid-oauth") return;
-		const expected = sessionStorage.getItem("orcid_oauth_state");
-		if (expected && event.data.state !== expected) return;
-		if (event.data.orcid) {
-			orcidInput.value = sanitizeOrcid(event.data.orcid);
-		} else if (event.data.error) {
-			const details = event.data.errorDescription ? `\nDetails: ${event.data.errorDescription}` : "";
-			alert(`ORCID authorization failed. Please try again.${details}`);
-		}
-	});
 </script>

@@ -20,6 +20,7 @@ wrangler d1 execute journal-db --file=./migrations/003_fix_editorial_board.sql
 wrangler d1 execute journal-db --file=./migrations/004_auth_fallback_tables.sql
 wrangler d1 execute journal-db --file=./migrations/005_user_roles.sql
 wrangler d1 execute journal-db --file=./migrations/006_board_application_orcid.sql
+wrangler d1 execute journal-db --file=./migrations/007_password_reset_tokens.sql
 ```
 
 ### 2. 创建 R2 存储桶
