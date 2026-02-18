@@ -12,8 +12,9 @@
 	},
 	"upload_source_maps": true,
 	"vars": {
-		"EMAIL_FROM": "noreply@example.com",
-		"SITE_NAME": "玄学前沿期刊群",
-		"SITE_URL": "https://example.com"
+		"EMAIL_FROM": "noreply@rubbish.pub",
+		"SITE_NAME": "Rubbish Publishing Group",
+		"SITE_URL": "https://example.com",
+		"RESEND_API_KEY": "re_PPYkUDCN_8kEbaqzHADx6Tdshp9Pwr31T"
 	}
 }

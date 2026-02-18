@@ -10,8 +10,8 @@ interface Props {
 }
 
 const {
-	title = "玄学前沿期刊群",
-	description = "致力于发表最抽象、最深刻的研究成果，为全球研究人员提供最优质的摸鱼素材。",
+	title = "Rubbish Publishing Group",
+	description = "The world's leading publisher of academically-formatted research of questionable merit. RPG: Where every paper gets published eventually.",
 	noHeader = false,
 	noFooter = false,
 } = Astro.props;
@@ -23,13 +23,13 @@ const subJournals = journals.filter((j) => !j.isMain);
 ---
 
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>{title}</title>
 	<meta name="description" content={description} />
-	<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+	<link rel="icon" type="image/jpeg" href="/images/articlelogo.jpg" />
 	<meta property="og:title" content={title} />
 	<meta property="og:description" content={description} />
 	<meta property="og:type" content="website" />
@@ -42,20 +42,20 @@ const subJournals = journals.filter((j) => !j.isMain);
 				<div class="container">
 					<div class="header-top-inner">
 						<div class="header-top-links">
-							<a href="/journals">所有期刊</a>
-							<a href="/join-editorial-board">加入编委会</a>
-							<a href="/about">关于我们</a>
+							<a href="/journals">All Journals</a>
+							<a href="/join-editorial-board">Join Editorial Board</a>
+							<a href="/about">About RPG</a>
 						</div>
 						<div class="header-top-links">
 							{user ? (
 								<>
-									<a href={`/${user.role}`}>我的工作台</a>
-									<a href="/api/auth/logout">退出登录</a>
+									<a href={`/${user.role}`}>My Dashboard</a>
+									<a href="/api/auth/logout">Logout</a>
 								</>
 							) : (
 								<>
-									<a href="/login">登录</a>
-									<a href="/register">注册</a>
+									<a href="/login">Login</a>
+									<a href="/register">Register</a>
 								</>
 							)}
 						</div>
@@ -68,17 +68,20 @@ const subJournals = journals.filter((j) => !j.isMain);
 				<div class="container">
 					<div class="header-main-inner">
 						<a href="/" class="site-logo">
-							<span class="logo-zh">玄学前沿</span>
-							<span class="logo-en">Frontiers in Metaphysics · Journal Group</span>
+							<img src="/images/RPG.png" alt="RPG" class="logo-img" style="height:48px;width:auto;object-fit:contain;flex-shrink:0;" />
+							<div class="logo-text">
+								<span class="logo-zh">Rubbish Publishing Group</span>
+								<span class="logo-en">Where Science Goes to Die · Est. 2024</span>
+							</div>
 						</a>
 						<div class="header-divider"></div>
-						<span class="header-tagline">探索人类认知的极限，并将其超越</span>
+						<span class="header-tagline">Advancing the frontiers of academic mediocrity</span>
 						<div class="header-actions">
-							<a href="/join-editorial-board" class="btn-join">加入编委会</a>
+							<a href="/join-editorial-board" class="btn-join">Join Editorial Board</a>
 							{user ? (
 								<a href={`/${user.role}`} class="btn-login">{user.name}</a>
 							) : (
-								<a href="/login" class="btn-login">登录 / 投稿</a>
+								<a href="/login" class="btn-login">Login / Submit</a>
 							)}
 						</div>
 					</div>
@@ -89,8 +92,8 @@ const subJournals = journals.filter((j) => !j.isMain);
 			<nav class="main-nav">
 				<div class="container">
 					<div class="main-nav-inner">
-						<a href="/" class={`nav-link${pathname === "/" ? " active" : ""}`}>首页</a>
-						<a href="/journals" class={`nav-link${pathname.startsWith("/journals") ? " active" : ""}`}>期刊目录</a>
+						<a href="/" class={`nav-link${pathname === "/" ? " active" : ""}`}>Home</a>
+						<a href="/journals" class={`nav-link${pathname.startsWith("/journals") ? " active" : ""}`}>All Journals</a>
 						{subJournals.slice(0, 4).map((j) => (
 							<a
 								href={`/journals/${j.slug}`}
@@ -99,7 +102,7 @@ const subJournals = journals.filter((j) => !j.isMain);
 								{j.name}
 							</a>
 						))}
-						<a href="/search" class={`nav-link${pathname === "/search" ? " active" : ""}`}>文献检索</a>
+						<a href="/search" class={`nav-link${pathname === "/search" ? " active" : ""}`}>Search</a>
 					</div>
 				</div>
 			</nav>
@@ -115,41 +118,47 @@ const subJournals = journals.filter((j) => !j.isMain);
 			<div class="container">
 				<div class="footer-main">
 					<div class="footer-brand">
-						<h3>玄学前沿期刊群</h3>
+						<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
+							<img src="/images/RPG.png" alt="RPG" style="height:40px;width:auto;object-fit:contain;" />
+							<h3 style="margin:0;">Rubbish Publishing Group</h3>
+						</div>
 						<p>
-							致力于发表最抽象、最深刻的研究成果。我们相信，每一个荒谬的问题背后，
-							都隐藏着深刻的学术价值——至少在评审通过之前是这样的。
+							Committed to publishing the most academically rigorous research of the least practical value.
+							We believe every idea deserves to be published, regardless of merit, reproducibility, or basic logical coherence.
 						</p>
 					</div>
 					<div class="footer-col">
-						<h4>期刊</h4>
+						<h4>Journals</h4>
 						<ul>
-							{journals.map((j) => (
+							{journals.slice(0, 10).map((j) => (
 								<li><a href={`/journals/${j.slug}`}>{j.name}</a></li>
 							))}
+							{journals.length > 10 && (
+								<li><a href="/journals">+ {journals.length - 10} more journals</a></li>
+							)}
 						</ul>
 					</div>
 					<div class="footer-col">
-						<h4>作者服务</h4>
+						<h4>Author Services</h4>
 						<ul>
-							<li><a href="/register">注册账号</a></li>
-							<li><a href="/author/submit">投递稿件</a></li>
-							<li><a href="/author">稿件追踪</a></li>
-							<li><a href="/join-editorial-board">加入编委会</a></li>
+							<li><a href="/register">Create Account</a></li>
+							<li><a href="/author/submit">Submit Manuscript</a></li>
+							<li><a href="/author">Track Submissions</a></li>
+							<li><a href="/join-editorial-board">Join Editorial Board</a></li>
 						</ul>
 					</div>
 					<div class="footer-col">
-						<h4>关于</h4>
+						<h4>About</h4>
 						<ul>
-							<li><a href="/about">关于我们</a></li>
-							<li><a href="/contact">联系我们</a></li>
-							<li><a href="/ethics">出版伦理</a></li>
-							<li><a href="/open-access">开放获取</a></li>
+							<li><a href="/about">About RPG</a></li>
+							<li><a href="/contact">Contact Us</a></li>
+							<li><a href="/ethics">Publication Ethics</a></li>
+							<li><a href="/open-access">Open Access</a></li>
 						</ul>
 					</div>
 				</div>
 				<div class="footer-bottom">
-					<span>© {new Date().getFullYear()} 玄学前沿期刊群. All rights reserved.</span>
+					<span>© {new Date().getFullYear()} Rubbish Publishing Group. All rights reserved.</span>
 					<span>Powered by Astro + Cloudflare Workers</span>
 				</div>
 			</div>

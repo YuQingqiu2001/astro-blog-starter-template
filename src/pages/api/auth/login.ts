@@ -13,7 +13,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 
 	const env = locals.runtime?.env;
 	if (!env?.DB || !env?.SESSIONS_KV) {
-		return redirect("/login?error=服务暂时不可用");
+		return redirect("/login?error=unavailable");
 	}
 
 	try {
@@ -50,6 +50,6 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 		});
 	} catch (err) {
 		console.error("Login error:", err);
-		return redirect("/login?error=服务器错误，请稍后重试");
+		return redirect("/login?error=unavailable");
 	}
 };
