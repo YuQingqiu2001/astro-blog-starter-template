@@ -41,7 +41,9 @@ wrangler r2 bucket create journal-manuscripts
 wrangler kv namespace create SESSIONS_KV
 ```
 
-将返回的 `id` 填入 `wrangler.json` 的 `kv_namespaces[0].id`。
+将返回的 `id` 配置到 Cloudflare Dashboard（Workers/Pages -> Settings -> Bindings）或 `wrangler.json`。
+
+⚠️ 请勿在 `wrangler.json` 保留 `YOUR_KV_NAMESPACE_ID` 这类占位符，否则部署会报 `KV namespace is not valid`。
 
 ### 4. 更新 wrangler.json
 
@@ -52,11 +54,6 @@ wrangler kv namespace create SESSIONS_KV
   "d1_databases": [
     {
       "database_id": "YOUR_D1_DATABASE_ID"
-    }
-  ],
-  "kv_namespaces": [
-    {
-      "id": "YOUR_KV_NAMESPACE_ID"
     }
   ],
   "vars": {

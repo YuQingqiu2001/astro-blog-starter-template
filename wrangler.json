@@ -25,12 +25,6 @@
       "database_id": "YOUR_D1_DATABASE_ID"
     }
   ],
-  "kv_namespaces": [
-    {
-      "binding": "rubbish",
-      "id": "YOUR_KV_NAMESPACE_ID"
-    }
-  ],
   "r2_buckets": [
     {
       "binding": "article",
