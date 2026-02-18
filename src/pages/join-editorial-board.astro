@@ -5,13 +5,6 @@ import { journals } from "../data/journals";
 const success = new URL(Astro.request.url).searchParams.get("success");
 const error = new URL(Astro.request.url).searchParams.get("error");
 
-const env = Astro.locals.runtime?.env as Record<string, any> | undefined;
-const siteUrl = env?.SITE_URL || "https://rubbishpublishing.org";
-const orcidClientId = env?.ORCID_CLIENT_ID || "";
-const orcidScope = "/authenticate";
-const orcidRedirectUri = `${siteUrl}/orcid/callback`;
-const orcidAuthorizeBase = "https://orcid.org/oauth/authorize";
-
 const positionOptions = [
 	{ value: "Editorial Board Member", label: "Editorial Board Member" },
 	{ value: "Associate Editor", label: "Associate Editor" },
@@ -140,7 +133,7 @@ const positionOptions = [
 	</div>
 </BaseLayout>
 
-<script define:vars={{ orcidClientId, orcidScope, orcidRedirectUri, orcidAuthorizeBase }}>
+<script>
 	const orcidPattern = /^\d{4}-\d{4}-\d{4}-[\dX]{4}$/i;
 	const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -191,20 +184,10 @@ const positionOptions = [
 	});
 
 	document.getElementById("orcid-connect-btn")?.addEventListener("click", () => {
-		if (!orcidClientId) {
-			alert("ORCID client is not configured yet. Please enter ORCID manually.");
-			return;
-		}
 		const state = crypto.randomUUID();
 		sessionStorage.setItem("orcid_oauth_state", state);
-		const params = new URLSearchParams({
-			client_id: orcidClientId,
-			response_type: "code",
-			scope: orcidScope,
-			redirect_uri: orcidRedirectUri,
-			state,
-		});
-		const popup = window.open(`${orcidAuthorizeBase}?${params.toString()}`, "orcid_oauth", "width=620,height=780");
+		const startUrl = `/api/orcid/start?state=${encodeURIComponent(state)}`;
+		const popup = window.open(startUrl, "orcid_oauth", "width=620,height=780");
 		if (!popup) {
 			alert("Popup blocked. Please allow popups and try again.");
 		}
@@ -218,7 +201,7 @@ const positionOptions = [
 		if (event.data.orcid) {
 			orcidInput.value = sanitizeOrcid(event.data.orcid);
 		} else if (event.data.error) {
-			alert("ORCID authorization was not completed. Please enter ORCID manually.");
+			alert("ORCID authorization failed. Please enter ORCID manually or contact support to configure ORCID OAuth.");
 		}
 	});
 </script>

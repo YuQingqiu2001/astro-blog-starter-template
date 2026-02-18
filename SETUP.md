@@ -56,7 +56,8 @@ wrangler kv namespace create SESSIONS_KV
     "EMAIL_FROM": "noreply@rubbishpublishing.org",
     "SITE_NAME": "玄学前沿期刊群",
     "SITE_URL": "https://rubbishpublishing.org",
-    "ORCID_CLIENT_ID": "YOUR_ORCID_CLIENT_ID"
+    "ORCID_CLIENT_ID": "YOUR_ORCID_CLIENT_ID",
+    "ORCID_CLIENT_SECRET": "YOUR_ORCID_CLIENT_SECRET"
   }
 }
 ```

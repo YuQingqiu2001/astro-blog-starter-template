@@ -5,6 +5,9 @@ const state = requestUrl.searchParams.get("state") || "";
 const orcid = requestUrl.searchParams.get("orcid") || "";
 const error = requestUrl.searchParams.get("error") || "";
 const errorDescription = requestUrl.searchParams.get("error_description") || "";
+const message = error
+	? "Authorization failed. Please return to the application window and try again."
+	: "Authorization completed. You can close this window.";
 ---
 
 <!doctype html>
@@ -30,6 +33,6 @@ const errorDescription = requestUrl.searchParams.get("error_description") || "";
 			}
 			window.close();
 		</script>
-		<p>Authorization completed. You can close this window.</p>
+		<p>{message}</p>
 	</body>
 </html>
