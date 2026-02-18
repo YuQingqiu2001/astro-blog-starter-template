@@ -70,9 +70,6 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 			return redirect("/login?error=invalid");
 		}
 
-		if (user.role !== selectedRole) {
-			return redirect("/login?error=role_mismatch");
-		}
 
 		const valid = await verifyPassword(password, user.password_hash);
 		if (!valid) {

@@ -24,8 +24,7 @@ const redirect = new URL(Astro.request.url).searchParams.get("redirect") || "";
 			{error && (
 				<div class="alert alert-error">
 					{error === "invalid" ? "Incorrect email or password. Please try again." :
-					 error === "role_mismatch" ? "This account type does not match your selected role tab." :
-					 error === "captcha_failed" ? "Human verification failed. Please try again." :
+										 error === "captcha_failed" ? "Human verification failed. Please try again." :
 					 error === "unavailable" ? "Service temporarily unavailable. Please try again later." : error}
 				</div>
 			)}

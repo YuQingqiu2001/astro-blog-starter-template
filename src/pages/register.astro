@@ -29,14 +29,14 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 			<form action="/api/auth/register" method="post" id="register-form">
 				<div class="form-group">
 					<label class="form-label">Account Type <span>*</span></label>
-					<div class="role-tabs" style="margin-bottom: 0;">
-						<button class="role-tab active" type="button" onclick="setRole('author')" id="role-author">
+					<div class="role-tabs" style="margin-bottom: 0;" id="role-tabs">
+						<button class="role-tab active" data-role="author" type="button" id="role-author">
 							✏️ Author
 						</button>
-						<button class="role-tab" type="button" onclick="setRole('editor')" id="role-editor">
+						<button class="role-tab" data-role="editor" type="button" id="role-editor">
 							📋 Editor
 						</button>
-						<button class="role-tab" type="button" onclick="setRole('reviewer')" id="role-reviewer">
+						<button class="role-tab" data-role="reviewer" type="button" id="role-reviewer">
 							🔍 Reviewer
 						</button>
 					</div>
@@ -80,7 +80,7 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 						minlength="8"
 						placeholder="At least 8 characters"
 						autocomplete="new-password"
-						oninput="checkPasswordStrength(this.value)"
+						
 					/>
 					<div id="password-strength" style="margin-top: 0.25rem; font-size: 0.8rem;"></div>
 				</div>
@@ -95,7 +95,7 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 						required
 						placeholder="Re-enter your password"
 						autocomplete="new-password"
-						oninput="checkPasswordMatch()"
+						
 					/>
 					<div id="password-match" style="margin-top: 0.25rem; font-size: 0.8rem;"></div>
 				</div>
@@ -104,7 +104,7 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 					<label class="form-label" for="captcha-answer">Human Verification <span>*</span></label>
 					<div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
 						<strong id="captcha-question">Loading challenge...</strong>
-						<button type="button" class="btn btn-sm btn-secondary" onclick="regenCaptcha()">↻ Refresh</button>
+						<button type="button" class="btn btn-sm btn-secondary" id="captcha-refresh">↻ Refresh</button>
 					</div>
 					<input type="hidden" name="captcha_expected" id="captcha-expected" />
 					<input type="text" id="captcha-answer" name="captcha_answer" class="form-input" required placeholder="Enter answer" inputmode="numeric" />
@@ -123,9 +123,11 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 </BaseLayout>
 
 <script>
-	function setRole(role) {
+	function activateRole(role) {
 		document.querySelectorAll(".role-tab").forEach((t) => t.classList.remove("active"));
-		document.getElementById(`role-${role}`)?.classList.add("active");
+		document.querySelectorAll("#role-tabs .role-tab").forEach((tab) => {
+			tab.classList.toggle("active", tab.dataset.role === role);
+		});
 		document.getElementById("role-input").value = role;
 		const jGroup = document.getElementById("journal-select-group");
 		const journalSelect = document.getElementById("journal-id");
@@ -173,6 +175,16 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 		}
 	}
 
+
+	document.querySelectorAll("#role-tabs .role-tab").forEach((btn) => {
+		btn.addEventListener("click", () => activateRole(btn.dataset.role));
+	});
+
+	document.getElementById("captcha-refresh")?.addEventListener("click", regenCaptcha);
+
+	document.getElementById("password")?.addEventListener("input", (e) => checkPasswordStrength(e.target.value));
+	document.getElementById("password2")?.addEventListener("input", checkPasswordMatch);
+
 	document.getElementById("register-form")?.addEventListener("submit", (e) => {
 		const p1 = document.getElementById("password").value;
 		const p2 = document.getElementById("password2").value;
@@ -187,9 +199,11 @@ const error = new URL(Astro.request.url).searchParams.get("error");
 		if (!answer || answer !== expected) {
 			e.preventDefault();
 			alert("Human verification failed. Please solve the math question.");
-			regenCaptcha();
+			activateRole("author");
+	regenCaptcha();
 		}
 	});
 
+	activateRole("author");
 	regenCaptcha();
 </script>
