@@ -11,19 +11,6 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "journal-db",
-			"database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
-		}
-	],
-	"r2_buckets": [
-		{
-			"binding": "MANUSCRIPTS_BUCKET",
-			"bucket_name": "journal-manuscripts"
-		}
-	],
 	"vars": {
 		"EMAIL_FROM": "noreply@example.com",
 		"SITE_NAME": "玄学前沿期刊群",
