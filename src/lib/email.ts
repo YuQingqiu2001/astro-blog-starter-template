@@ -1,10 +1,11 @@
-// Email sending via Resend SDK (https://resend.com)
-// Requires RESEND_API_KEY environment variable in Cloudflare Workers
-
-import { Resend } from "resend";
+// Email sending for Cloudflare Workers.
+// Priority:
+// 1) Resend REST API (if RESEND_API_KEY is configured)
+// 2) MailChannels API (zero-key fallback, requires domain SPF setup)
 
 interface EmailOptions {
 	to: string;
+	toName?: string;
 	from: string;
 	fromName?: string;
 	subject: string;
@@ -12,22 +13,81 @@ interface EmailOptions {
 	text?: string;
 }
 
-export async function sendEmail(options: EmailOptions, apiKey: string): Promise<boolean> {
-	const resend = new Resend(apiKey);
+function getEmailAddress(input: string): string {
+	const m = input.match(/<([^>]+)>/);
+	return (m?.[1] || input).trim();
+}
 
-	const { error } = await resend.emails.send({
-		from: options.fromName ? `${options.fromName} <${options.from}>` : options.from,
-		to: [options.to],
-		subject: options.subject,
-		html: options.html,
-		...(options.text ? { text: options.text } : {}),
+async function sendWithResend(options: EmailOptions, apiKey: string): Promise<boolean> {
+	const response = await fetch("https://api.resend.com/emails", {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${apiKey}`,
+		},
+		body: JSON.stringify({
+			from: options.fromName ? `${options.fromName} <${options.from}>` : options.from,
+			to: [options.toName ? `${options.toName} <${options.to}>` : options.to],
+			subject: options.subject,
+			html: options.html,
+			...(options.text ? { text: options.text } : {}),
+		}),
 	});
 
-	if (error) {
-		console.error("Resend error:", error);
+	if (!response.ok) {
+		console.error("Resend error:", response.status, await response.text());
 		return false;
 	}
+
 	return true;
+}
+
+async function sendWithMailChannels(options: EmailOptions): Promise<boolean> {
+	const fromAddress = getEmailAddress(options.from);
+	const fromName = options.fromName || fromAddress;
+
+	const response = await fetch("https://api.mailchannels.net/tx/v1/send", {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({
+			personalizations: [
+				{
+					to: [
+						{
+							email: options.to,
+							...(options.toName ? { name: options.toName } : {}),
+						},
+					],
+				},
+			],
+			from: {
+				email: fromAddress,
+				name: fromName,
+			},
+			subject: options.subject,
+			content: [
+				{ type: "text/html", value: options.html },
+				...(options.text ? [{ type: "text/plain", value: options.text }] : []),
+			],
+		}),
+	});
+
+	if (!response.ok) {
+		console.error("MailChannels error:", response.status, await response.text());
+		return false;
+	}
+
+	return true;
+}
+
+export async function sendEmail(options: EmailOptions, apiKey?: string): Promise<boolean> {
+	if (apiKey) {
+		return sendWithResend(options, apiKey);
+	}
+
+	return sendWithMailChannels(options);
 }
 
 export function verificationEmailHtml(code: string, siteName: string): string {

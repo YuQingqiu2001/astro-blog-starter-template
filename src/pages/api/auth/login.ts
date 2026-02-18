@@ -1,25 +1,43 @@
 import type { APIRoute } from "astro";
 import { verifyPassword, createSession, setSessionCookie } from "../../../lib/auth";
 
+function normalizeRedirectPath(input: string): string {
+	if (!input || !input.startsWith("/") || input.startsWith("//")) {
+		return "";
+	}
+	return input;
+}
+
 export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	const formData = await request.formData();
 	const email = (formData.get("email") as string || "").trim().toLowerCase();
-	const password = (formData.get("password") as string || "");
-	const redirectTo = (formData.get("redirect") as string || "").trim();
+	const password = formData.get("password") as string || "";
+	const redirectTo = normalizeRedirectPath((formData.get("redirect") as string || "").trim());
 
 	if (!email || !password) {
 		return redirect("/login?error=invalid");
 	}
 
+	if (email.length > 254) {
+		return redirect("/login?error=invalid");
+	}
+
 	const env = locals.runtime?.env;
-	if (!env?.DB || !env?.SESSIONS_KV) {
+	if (!env?.DB) {
 		return redirect("/login?error=unavailable");
 	}
 
 	try {
 		const user = await env.DB.prepare(
-			"SELECT * FROM users WHERE email = ? AND verified = 1"
-		).bind(email).first() as any;
+			"SELECT id, email, password_hash, name, role, journal_id FROM users WHERE email = ? AND verified = 1"
+		).bind(email).first() as {
+			id: number;
+			email: string;
+			password_hash: string;
+			name: string;
+			role: "author" | "editor" | "reviewer";
+			journal_id: number | null;
+		} | null;
 
 		if (!user) {
 			return redirect("/login?error=invalid");
@@ -30,15 +48,13 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 			return redirect("/login?error=invalid");
 		}
 
-		const sessionData = {
+		const token = await createSession({ kv: env.SESSIONS_KV, db: env.DB }, {
 			userId: user.id,
 			email: user.email,
 			name: user.name,
-			role: user.role as "author" | "editor" | "reviewer",
+			role: user.role,
 			journalId: user.journal_id,
-		};
-
-		const token = await createSession(env.SESSIONS_KV, sessionData);
+		});
 
 		const dest = redirectTo || `/${user.role}`;
 		return new Response(null, {

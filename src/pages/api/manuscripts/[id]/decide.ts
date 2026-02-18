@@ -7,7 +7,11 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
 		return redirect("/login");
 	}
 
-	const id = parseInt(params.id!);
+	const id = Number.parseInt(params.id || "", 10);
+	if (!id) {
+		return redirect("/editor?error=invalid_manuscript");
+	}
+
 	const env = locals.runtime?.env;
 	if (!env?.DB) {
 		return redirect(`/editor/manuscript/${id}?error=服务暂时不可用`);
@@ -22,49 +26,43 @@ export const POST: APIRoute = async ({ request, locals, params, redirect }) => {
 	}
 
 	try {
-		// Get manuscript & submitter info
 		const manuscript = await env.DB.prepare(`
 			SELECT m.*, u.email as submitter_email, u.name as submitter_name
 			FROM manuscripts m
 			JOIN users u ON m.submitter_id = u.id
 			WHERE m.id = ? AND m.journal_id = ?
-		`).bind(id, user.journalId).first() as any;
+		`).bind(id, user.journalId).first() as {
+			title: string;
+			submitter_email: string;
+			submitter_name: string;
+		} | null;
 
 		if (!manuscript) {
 			return redirect("/editor");
 		}
 
-		// Record editorial decision
 		await env.DB.prepare(`
 			INSERT INTO editorial_decisions (manuscript_id, editor_id, decision, comments)
 			VALUES (?, ?, ?, ?)
 		`).bind(id, user.id, decision, comments).run();
 
-		// Update manuscript status
-		const newStatus =
-			decision === "accept"
-				? "accepted"
-				: decision === "revision"
-					? "revision_requested"
-					: "rejected";
-
+		const newStatus = decision === "accept" ? "accepted" : decision === "revision" ? "revision_requested" : "rejected";
 		await env.DB.prepare(`
 			UPDATE manuscripts
 			SET status = ?, editor_id = ?, editor_comment = ?, updated_at = datetime('now')
 			WHERE id = ?
 		`).bind(newStatus, user.id, comments, id).run();
 
-		// Send email to author
-		const siteUrl = env.SITE_URL || "https://example.com";
-		const siteName = env.SITE_NAME || "玄学前沿期刊群";
+		const siteUrl = env.SITE_URL || "https://rubbishpublishing.org";
+		const siteName = env.SITE_NAME || "Rubbish Publishing Group";
 		await sendEmail({
 			to: manuscript.submitter_email,
 			toName: manuscript.submitter_name,
-			from: env.EMAIL_FROM || "noreply@example.com",
+			from: env.EMAIL_FROM || "noreply@rubbishpublishing.org",
 			fromName: siteName,
 			subject: `【${siteName}】稿件审理结果通知：《${manuscript.title}》`,
 			html: decisionEmailHtml(manuscript.title, decision, comments, siteName, siteUrl),
-		});
+		}, env.RESEND_API_KEY);
 
 		return redirect(`/editor/manuscript/${id}?success=决定已发送`);
 	} catch (err) {

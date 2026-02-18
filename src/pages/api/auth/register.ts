@@ -1,20 +1,32 @@
 import type { APIRoute } from "astro";
-import { hashPassword, createSession, setSessionCookie } from "../../../lib/auth";
+import {
+	hashPassword,
+	createSession,
+	setSessionCookie,
+	isEmailVerified,
+	clearVerifiedEmail,
+} from "../../../lib/auth";
+
+const allowedRoles = ["author", "editor", "reviewer"] as const;
 
 export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	const formData = await request.formData();
 	const email = (formData.get("email") as string || "").trim().toLowerCase();
 	const name = (formData.get("name") as string || "").trim();
-	const password = (formData.get("password") as string || "");
-	const password2 = (formData.get("password2") as string || "");
+	const password = formData.get("password") as string || "";
+	const password2 = formData.get("password2") as string || "";
 	const role = formData.get("role") as string || "author";
 	const affiliation = (formData.get("affiliation") as string || "").trim();
 	const journalIdStr = formData.get("journal_id") as string || "";
-	const journalId = journalIdStr ? parseInt(journalIdStr) : null;
+	const journalId = journalIdStr ? Number.parseInt(journalIdStr, 10) : null;
 	const code = (formData.get("code") as string || "").trim();
 
 	if (!email || !name || !password || !code) {
 		return redirect("/register?error=missing_fields");
+	}
+
+	if (email.length > 254 || name.length > 120 || affiliation.length > 255) {
+		return redirect("/register?error=invalid_input");
 	}
 
 	if (password.length < 8) {
@@ -22,49 +34,42 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 	}
 
 	if (password !== password2) {
-		return redirect("/register?error=密码不匹配");
+		return redirect("/register?error=password_mismatch");
 	}
 
-	if (!["author", "editor", "reviewer"].includes(role)) {
-		return redirect("/register?error=missing_fields");
+	if (!allowedRoles.includes(role as typeof allowedRoles[number])) {
+		return redirect("/register?error=invalid_role");
+	}
+
+	if ((role === "editor" || role === "reviewer") && (!journalId || Number.isNaN(journalId))) {
+		return redirect("/register?error=missing_journal");
 	}
 
 	const env = locals.runtime?.env;
-	if (!env?.DB || !env?.SESSIONS_KV) {
-		return redirect("/register?error=服务暂时不可用");
+	if (!env?.DB) {
+		return redirect("/register?error=service_unavailable");
 	}
 
 	try {
-		// Check if email already exists
-		const existing = await env.DB.prepare(
-			"SELECT id FROM users WHERE email = ?"
-		).bind(email).first();
-
+		const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first();
 		if (existing) {
 			return redirect("/register?error=email_taken");
 		}
 
-		// Verify email was verified
-		const verified = await env.SESSIONS_KV.get(`verified:${email}`);
+		const verified = await isEmailVerified({ kv: env.SESSIONS_KV, db: env.DB }, email);
 		if (!verified) {
 			return redirect("/register?error=code_invalid");
 		}
 
-		// Hash password
 		const passwordHash = await hashPassword(password);
-
-		// Create user
 		const result = await env.DB.prepare(`
 			INSERT INTO users (email, password_hash, name, role, journal_id, verified, affiliation)
 			VALUES (?, ?, ?, ?, ?, 1, ?)
-		`).bind(email, passwordHash, name, role, journalId, affiliation).run();
+		`).bind(email, passwordHash, name, role, journalId, affiliation || null).run();
 
 		const userId = result.meta.last_row_id as number;
+		await clearVerifiedEmail({ kv: env.SESSIONS_KV, db: env.DB }, email);
 
-		// Clear verification key
-		await env.SESSIONS_KV.delete(`verified:${email}`);
-
-		// Create session
 		const sessionData = {
 			userId,
 			email,
@@ -73,8 +78,7 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 			journalId,
 		};
 
-		const token = await createSession(env.SESSIONS_KV, sessionData);
-
+		const token = await createSession({ kv: env.SESSIONS_KV, db: env.DB }, sessionData);
 		return new Response(null, {
 			status: 302,
 			headers: {
@@ -84,6 +88,6 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
 		});
 	} catch (err) {
 		console.error("Register error:", err);
-		return redirect("/register?error=服务器错误，请稍后重试");
+		return redirect("/register?error=server_error");
 	}
 };

@@ -3,8 +3,9 @@ import { getSessionToken, destroySession, clearSessionCookie } from "../../../li
 
 export const GET: APIRoute = async ({ request, locals }) => {
 	const token = getSessionToken(request);
-	if (token && locals.runtime?.env?.SESSIONS_KV) {
-		await destroySession(locals.runtime.env.SESSIONS_KV, token);
+	const env = locals.runtime?.env;
+	if (token && env?.DB) {
+		await destroySession({ kv: env.SESSIONS_KV, db: env.DB }, token);
 	}
 
 	return new Response(null, {

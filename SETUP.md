@@ -15,6 +15,9 @@ wrangler d1 create journal-db
 初始化数据库：
 ```bash
 wrangler d1 execute journal-db --file=./migrations/001_initial.sql
+wrangler d1 execute journal-db --file=./migrations/002_seed_editorial_board.sql
+wrangler d1 execute journal-db --file=./migrations/003_fix_editorial_board.sql
+wrangler d1 execute journal-db --file=./migrations/004_auth_fallback_tables.sql
 ```
 
 ### 2. 创建 R2 存储桶
@@ -48,18 +51,19 @@ wrangler kv namespace create SESSIONS_KV
     }
   ],
   "vars": {
-    "EMAIL_FROM": "noreply@yourdomain.com",
+    "EMAIL_FROM": "noreply@rubbishpublishing.org",
     "SITE_NAME": "玄学前沿期刊群",
-    "SITE_URL": "https://yourdomain.pages.dev"
+    "SITE_URL": "https://rubbishpublishing.org"
   }
 }
 ```
 
-### 5. 配置邮件发送（Mailchannels）
+### 5. 配置邮件发送（Cloudflare 自动 + MailChannels）
 
-Mailchannels 在 Cloudflare Workers 上免费使用，但需要配置 SPF 记录：
+对于已验证域名 `rubbishpublishing.org`，可直接使用 `noreply@rubbishpublishing.org` 发信。
+系统会优先使用 `RESEND_API_KEY`（若已配置），否则自动回退到 MailChannels。
 
-在您的域名 DNS 中添加：
+在 Cloudflare DNS 中建议保留 SPF 记录（若不存在请添加）：
 ```
 v=spf1 include:relay.mailchannels.net ~all
 ```

@@ -4,9 +4,10 @@ import { getSession, getSessionToken } from "./lib/auth";
 export const onRequest = defineMiddleware(async (context, next) => {
 	const token = getSessionToken(context.request);
 
-	if (token && context.locals.runtime?.env?.SESSIONS_KV) {
+	const env = context.locals.runtime?.env;
+	if (token && env?.DB) {
 		try {
-			const session = await getSession(context.locals.runtime.env.SESSIONS_KV, token);
+			const session = await getSession({ kv: env.SESSIONS_KV, db: env.DB }, token);
 			if (session) {
 				context.locals.user = {
 					id: session.userId,

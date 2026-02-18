@@ -87,58 +87,206 @@ export function generateCode(): string {
 	return num.toString();
 }
 
-export async function createSession(
-	kv: KVNamespace,
-	data: SessionData
-): Promise<string> {
+interface AuthStore {
+	kv?: KVNamespace;
+	db?: D1Database;
+}
+
+export async function createSession(store: AuthStore, data: SessionData): Promise<string> {
 	const token = generateToken();
-	const key = `session:${token}`;
-	// Session expires in 7 days
-	await kv.put(key, JSON.stringify(data), { expirationTtl: 7 * 24 * 3600 });
-	return token;
-}
 
-export async function getSession(
-	kv: KVNamespace,
-	token: string
-): Promise<SessionData | null> {
-	const key = `session:${token}`;
-	const raw = await kv.get(key);
-	if (!raw) return null;
-	try {
-		return JSON.parse(raw) as SessionData;
-	} catch {
-		return null;
+	if (store.kv) {
+		const key = `session:${token}`;
+		await store.kv.put(key, JSON.stringify(data), { expirationTtl: 7 * 24 * 3600 });
+		return token;
 	}
+
+	if (store.db) {
+		await store.db.prepare(`
+			INSERT INTO user_sessions (token, user_id, email, name, role, journal_id, expires_at)
+			VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+7 days'))
+		`).bind(token, data.userId, data.email, data.name, data.role, data.journalId).run();
+		return token;
+	}
+
+	throw new Error("No session storage configured");
 }
 
-export async function destroySession(
-	kv: KVNamespace,
-	token: string
-): Promise<void> {
-	await kv.delete(`session:${token}`);
+export async function getSession(store: AuthStore, token: string): Promise<SessionData | null> {
+	if (store.kv) {
+		const raw = await store.kv.get(`session:${token}`);
+		if (!raw) return null;
+		try {
+			return JSON.parse(raw) as SessionData;
+		} catch {
+			return null;
+		}
+	}
+
+	if (store.db) {
+		const row = await store.db.prepare(`
+			SELECT user_id, email, name, role, journal_id
+			FROM user_sessions
+			WHERE token = ? AND expires_at > datetime('now')
+		`).bind(token).first() as {
+			user_id: number;
+			email: string;
+			name: string;
+			role: "author" | "editor" | "reviewer";
+			journal_id: number | null;
+		} | null;
+		if (!row) return null;
+		return {
+			userId: row.user_id,
+			email: row.email,
+			name: row.name,
+			role: row.role,
+			journalId: row.journal_id,
+		};
+	}
+
+	return null;
+}
+
+export async function destroySession(store: AuthStore, token: string): Promise<void> {
+	if (store.kv) {
+		await store.kv.delete(`session:${token}`);
+		return;
+	}
+	if (store.db) {
+		await store.db.prepare("DELETE FROM user_sessions WHERE token = ?").bind(token).run();
+	}
 }
 
 export async function storeVerificationCode(
-	kv: KVNamespace,
+	store: AuthStore,
 	email: string,
 	code: string
 ): Promise<void> {
-	await kv.put(`verify:${email}`, code, { expirationTtl: 600 }); // 10 minutes
+	if (store.kv) {
+		await store.kv.put(`verify:${email}`, code, { expirationTtl: 600 });
+		return;
+	}
+
+	if (store.db) {
+		await store.db.prepare("DELETE FROM auth_verification_codes WHERE email = ?").bind(email).run();
+		await store.db.prepare(`
+			INSERT INTO auth_verification_codes (email, code, expires_at)
+			VALUES (?, ?, datetime('now', '+10 minutes'))
+		`).bind(email, code).run();
+	}
 }
 
 export async function verifyCode(
-	kv: KVNamespace,
+	store: AuthStore,
 	email: string,
 	code: string
 ): Promise<boolean> {
-	const stored = await kv.get(`verify:${email}`);
-	if (!stored) return false;
-	const valid = stored === code;
-	if (valid) {
-		await kv.delete(`verify:${email}`);
+	if (store.kv) {
+		const stored = await store.kv.get(`verify:${email}`);
+		if (!stored) return false;
+		const valid = stored === code;
+		if (valid) {
+			await store.kv.delete(`verify:${email}`);
+		}
+		return valid;
 	}
-	return valid;
+
+	if (store.db) {
+		const row = await store.db.prepare(`
+			SELECT code FROM auth_verification_codes
+			WHERE email = ? AND expires_at > datetime('now')
+		`).bind(email).first() as { code: string } | null;
+		if (!row) return false;
+		const valid = row.code === code;
+		if (valid) {
+			await store.db.prepare("DELETE FROM auth_verification_codes WHERE email = ?").bind(email).run();
+		}
+		return valid;
+	}
+
+	return false;
+}
+
+export async function wasRecentlyRateLimited(
+	store: AuthStore,
+	key: string
+): Promise<boolean> {
+	if (store.kv) {
+		return Boolean(await store.kv.get(key));
+	}
+	if (store.db) {
+		const row = await store.db.prepare(
+			"SELECT key FROM auth_rate_limits WHERE key = ? AND expires_at > datetime('now')"
+		).bind(key).first();
+		return Boolean(row);
+	}
+	return false;
+}
+
+export async function setRateLimit(
+	store: AuthStore,
+	key: string,
+	ttlSeconds: number
+): Promise<void> {
+	if (store.kv) {
+		await store.kv.put(key, "1", { expirationTtl: ttlSeconds });
+		return;
+	}
+	if (store.db) {
+		await store.db.prepare("DELETE FROM auth_rate_limits WHERE key = ?").bind(key).run();
+		await store.db.prepare(`
+			INSERT INTO auth_rate_limits (key, expires_at)
+			VALUES (?, datetime('now', '+' || ? || ' seconds'))
+		`).bind(key, ttlSeconds).run();
+	}
+}
+
+export async function clearRateLimit(store: AuthStore, key: string): Promise<void> {
+	if (store.kv) {
+		await store.kv.delete(key);
+		return;
+	}
+	if (store.db) {
+		await store.db.prepare("DELETE FROM auth_rate_limits WHERE key = ?").bind(key).run();
+	}
+}
+
+export async function markEmailVerified(store: AuthStore, email: string): Promise<void> {
+	if (store.kv) {
+		await store.kv.put(`verified:${email}`, "1", { expirationTtl: 600 });
+		return;
+	}
+	if (store.db) {
+		await store.db.prepare("DELETE FROM auth_verified_emails WHERE email = ?").bind(email).run();
+		await store.db.prepare(`
+			INSERT INTO auth_verified_emails (email, expires_at)
+			VALUES (?, datetime('now', '+10 minutes'))
+		`).bind(email).run();
+	}
+}
+
+export async function isEmailVerified(store: AuthStore, email: string): Promise<boolean> {
+	if (store.kv) {
+		return Boolean(await store.kv.get(`verified:${email}`));
+	}
+	if (store.db) {
+		const row = await store.db.prepare(
+			"SELECT email FROM auth_verified_emails WHERE email = ? AND expires_at > datetime('now')"
+		).bind(email).first();
+		return Boolean(row);
+	}
+	return false;
+}
+
+export async function clearVerifiedEmail(store: AuthStore, email: string): Promise<void> {
+	if (store.kv) {
+		await store.kv.delete(`verified:${email}`);
+		return;
+	}
+	if (store.db) {
+		await store.db.prepare("DELETE FROM auth_verified_emails WHERE email = ?").bind(email).run();
+	}
 }
 
 export function getSessionToken(request: Request): string | null {
@@ -157,5 +305,5 @@ export function setSessionCookie(token: string): string {
 }
 
 export function clearSessionCookie(): string {
-	return `session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+	return "session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0";
 }

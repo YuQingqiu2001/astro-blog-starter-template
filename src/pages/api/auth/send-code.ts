@@ -1,5 +1,11 @@
 import type { APIRoute } from "astro";
-import { generateCode, storeVerificationCode } from "../../../lib/auth";
+import {
+	generateCode,
+	storeVerificationCode,
+	wasRecentlyRateLimited,
+	setRateLimit,
+	clearRateLimit,
+} from "../../../lib/auth";
 import { sendEmail, verificationEmailHtml } from "../../../lib/email";
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -13,18 +19,25 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		});
 	}
 
-	const env = locals.runtime?.env;
-	if (!env?.SESSIONS_KV) {
-		// Dev mode without KV: log the code and return success
-		console.log(`[DEV] Verification code for ${email}: 123456`);
-		return new Response(JSON.stringify({ success: true }), {
+	if (email.length > 254) {
+		return new Response(JSON.stringify({ success: false, error: "Invalid email address" }), {
+			status: 400,
 			headers: { "Content-Type": "application/json" },
 		});
 	}
 
-	// Rate limiting: allow at most 1 code per 60 seconds per email
+	const env = locals.runtime?.env;
+	if (!env?.DB) {
+		return new Response(JSON.stringify({ success: false, error: "Service unavailable" }), {
+			status: 503,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
+	const store = { kv: env.SESSIONS_KV, db: env.DB };
+
 	const rateLimitKey = `ratelimit:send-code:${email}`;
-	const recentlySent = await env.SESSIONS_KV.get(rateLimitKey);
+	const recentlySent = await wasRecentlyRateLimited(store, rateLimitKey);
 	if (recentlySent) {
 		return new Response(JSON.stringify({ success: false, error: "Please wait 60 seconds before requesting another code" }), {
 			status: 429,
@@ -32,41 +45,27 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		});
 	}
 
-	// Check if email already registered (skip board placeholder accounts)
-	if (env.DB) {
-		try {
-			const existing = await env.DB.prepare(
-				"SELECT id FROM users WHERE email = ? AND password_hash != 'board_member_placeholder'"
-			).bind(email).first();
-			if (existing) {
-				return new Response(JSON.stringify({ success: false, error: "This email is already registered. Please login instead." }), {
-					status: 409,
-					headers: { "Content-Type": "application/json" },
-				});
-			}
-		} catch {
-			// DB check failed — continue anyway
+	try {
+		const existing = await env.DB.prepare(
+			"SELECT id FROM users WHERE email = ? AND password_hash != 'board_member_placeholder'"
+		).bind(email).first();
+		if (existing) {
+			return new Response(JSON.stringify({ success: false, error: "This email is already registered. Please login instead." }), {
+				status: 409,
+				headers: { "Content-Type": "application/json" },
+			});
 		}
-	}
-
-	const apiKey = env.RESEND_API_KEY;
-	if (!apiKey) {
-		console.error("RESEND_API_KEY is not configured");
-		return new Response(JSON.stringify({ success: false, error: "Email service is not configured. Please contact the administrator." }), {
-			status: 503,
-			headers: { "Content-Type": "application/json" },
-		});
+	} catch {
+		// continue even when DB check fails
 	}
 
 	try {
 		const code = generateCode();
-		await storeVerificationCode(env.SESSIONS_KV, email, code);
-
-		// Set rate limit (60s TTL)
-		await env.SESSIONS_KV.put(rateLimitKey, "1", { expirationTtl: 60 });
+		await storeVerificationCode(store, email, code);
+		await setRateLimit(store, rateLimitKey, 60);
 
 		const siteName = env.SITE_NAME || "Rubbish Publishing Group";
-		const fromEmail = env.EMAIL_FROM || "noreply@example.com";
+		const fromEmail = env.EMAIL_FROM || "noreply@rubbishpublishing.org";
 
 		const sent = await sendEmail({
 			to: email,
@@ -75,12 +74,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			subject: `[${siteName}] Your verification code`,
 			html: verificationEmailHtml(code, siteName),
 			text: `Your verification code is: ${code}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, please ignore this email.`,
-		}, apiKey);
+		}, env.RESEND_API_KEY);
 
 		if (!sent) {
-			console.warn(`Email delivery failed for ${email}`);
-			// Remove rate limit so user can try again
-			await env.SESSIONS_KV.delete(rateLimitKey);
+			await clearRateLimit(store, rateLimitKey);
 			return new Response(JSON.stringify({ success: false, error: "Failed to send email. Please check your email address and try again." }), {
 				status: 503,
 				headers: { "Content-Type": "application/json" },
